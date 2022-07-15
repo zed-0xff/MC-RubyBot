@@ -6,7 +6,10 @@
   "mixins": [
   ],
   "client": [
-    "ExampleMixin"
+    "MixinFishingBobberEntityRenderer",
+    "MixinItemStack",
+    "MixinLivingEntity",
+    "MixinLivingEntityRenderer"
   ],
   "injectors": {
     "defaultRequire": 1

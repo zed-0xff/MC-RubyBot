@@ -22,10 +22,10 @@ import net.minecraft.client.render.entity.feature.FeatureRenderer;
 @Mixin(LivingEntityRenderer.class)
 public abstract class MixinLivingEntityRenderer<T extends LivingEntity,M extends EntityModel<T>> {
     // works only on start of client?
-    @Inject(method = "addFeature(Lnet/minecraft/client/render/entity/feature/FeatureRenderer;)Z", at = @At("HEAD"))
-    void foo(FeatureRenderer<T,M> feature, CallbackInfoReturnable<Boolean> cir){
-        ExampleMod.LOGGER.info("[d] " + this.toString() + ": addFeature " + feature.toString());
-    }
+//    @Inject(method = "addFeature(Lnet/minecraft/client/render/entity/feature/FeatureRenderer;)Z", at = @At("HEAD"))
+//    void foo(FeatureRenderer<T,M> feature, CallbackInfoReturnable<Boolean> cir){
+//        ExampleMod.LOGGER.info("[d] " + this.toString() + ": addFeature " + feature.toString());
+//    }
 //
 //    // works
 //    @Inject(method = "getHandSwingProgress(Lnet/minecraft/entity/LivingEntity;F)F", at = @At("HEAD"))

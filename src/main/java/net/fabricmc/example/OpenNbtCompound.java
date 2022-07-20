@@ -61,6 +61,12 @@ public class OpenNbtCompound extends NbtCompound {
         return arr;
     }
 
+    public static JsonObject toJson(NbtCompound src) {
+        OpenNbtCompound tmp = new OpenNbtCompound();
+        tmp.copyFrom(src);
+        return tmp.asJson();
+    }
+
     public JsonObject asJson() {
         JsonObject obj = new JsonObject();
         for (Map.Entry<String, NbtElement> entry : toMap().entrySet()) {

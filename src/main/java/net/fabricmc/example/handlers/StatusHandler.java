@@ -1,6 +1,9 @@
 package net.fabricmc.example.handlers;
 
 import net.fabricmc.example.OpenNbtCompound;
+import net.fabricmc.example.utils.Serializer;
+import net.fabricmc.example.utils.StatusBarTracker;
+import net.fabricmc.example.utils.XPInformation;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
@@ -15,7 +18,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Property;
@@ -31,6 +36,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 
 import com.google.gson.JsonObject;
+import com.google.gson.Gson;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +47,36 @@ import java.util.UUID;
 public class StatusHandler implements HttpHandler {
     public static final Logger LOGGER = LoggerFactory.getLogger("modid");
     private static MinecraftClient mc;
+    private static final Gson GSON = new Gson();
+    public static Locraw locraw;
+    public static final StatusBarTracker statusBarTracker = new StatusBarTracker();
 
 	public StatusHandler(MinecraftClient mc) {
 	    StatusHandler.mc = mc;
 	}
+
+    // {"server":"mini31CG","gametype":"SKYBLOCK","mode":"foraging_1","map":"The Park"}
+    public class Locraw {
+        public String server;
+        String gametype;
+        String mode;
+        String map;
+    }
+
+    public static void handleMessage(int type, String msg) {
+        if (msg.startsWith("{") && msg.endsWith("}")) {
+            setLocraw(msg);
+        } else if (type == 2) {
+            statusBarTracker.update(msg, false);
+            XPInformation.getInstance().onChatReceived(msg);
+        }
+    }
+
+    public static void setLocraw(String msg) {
+        Locraw l = GSON.fromJson(msg, Locraw.class);
+        if ( l.server != null || l.gametype != null || l.mode != null || l.map != null )
+            locraw = l;
+    }
 
     private static double getSpeed(Entity entity) {
         double dx = entity.getX() - entity.lastRenderX;
@@ -77,25 +109,14 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
-    private JsonObject serializeBlockState(HitResult target) {
+    private static JsonObject serializeBlockState(HitResult target) {
         BlockPos pos = ((BlockHitResult) target).getBlockPos();
         BlockState state = mc.world.getBlockState(pos);
-        return serializeBlockState(state);
-    }
-
-    public static JsonObject serializePos(Vec3d pos) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("x", pos.getX());
-        obj.addProperty("y", pos.getY());
-        obj.addProperty("z", pos.getZ());
-        return obj;
-    }
-
-    public static JsonObject serializePos(BlockPos pos) {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("x", pos.getX());
-        obj.addProperty("y", pos.getY());
-        obj.addProperty("z", pos.getZ());
+        JsonObject obj = serializeBlockState(state);
+        obj.addProperty(
+                "canPathfindThrough",
+                state.canPathfindThrough(mc.world, pos, net.minecraft.entity.ai.pathing.NavigationType.LAND)
+                );
         return obj;
     }
 
@@ -109,12 +130,16 @@ public class StatusHandler implements HttpHandler {
 
         Identifier id = EntityType.getId(entity.getType());
         JsonObject obj = new JsonObject();
-        obj.add("pos", serializePos(entity.getPos()));
+        obj.add("pos", Serializer.toJsonTree(entity.getPos()));
         obj.addProperty("speed", getSpeed(entity));
         obj.addProperty("yaw", MathHelper.wrapDegrees(entity.getYaw()));
         obj.addProperty("pitch", MathHelper.wrapDegrees(entity.getPitch()));
         obj.addProperty("id", id.toString());
         obj.addProperty("uuid", entity.getUuidAsString());
+        obj.add("boundingBox", Serializer.toJsonTree(entity.getBoundingBox()));
+        obj.add("visibilityBoundingBox", Serializer.toJsonTree(entity.getVisibilityBoundingBox()));
+        obj.add("boundingCenter", Serializer.toJsonTree(entity.getBoundingBox().getCenter()));
+        obj.add("visibilityBoundingCenter", Serializer.toJsonTree(entity.getVisibilityBoundingBox().getCenter()));
         String name = null;
         if ( entity.getName() != null ) {
             obj.addProperty("name", name = entity.getName().getString());
@@ -131,9 +156,22 @@ public class StatusHandler implements HttpHandler {
             obj.addProperty("display_name", entity.getDisplayName().getString());
         }
         if (entity instanceof LivingEntity) {
-            LivingEntity living = (LivingEntity) entity;
-            obj.addProperty("health", living.getHealth());
-            obj.addProperty("max_health", living.getMaxHealth());
+            LivingEntity le = (LivingEntity) entity;
+//            obj.addProperty("health", le.getHealth());
+//            obj.addProperty("max_health", le.getMaxHealth());
+// always meaningless or zero
+//            obj.addProperty("lastAttackTime", le.getLastAttackTime());
+//            obj.addProperty("lastAttackedTime", le.getLastAttackedTime());
+//            obj.add("lastDamageSource", Serializer.toJsonTree(le.getRecentDamageSource()));
+        }
+        if (entity instanceof HostileEntity) {
+            HostileEntity he = (HostileEntity) entity;
+            obj.addProperty("isAngryAtPlayer", he.isAngryAt(mc.player));
+        }
+        if (entity instanceof MobEntity) {
+            MobEntity mob = (MobEntity) entity;
+            obj.add("target", Serializer.toJsonTree(mob.getTarget()));
+            obj.addProperty("isAttacking", mob.isAttacking());
         }
         OpenNbtCompound nbt = new OpenNbtCompound();
         entity.writeNbt(nbt);
@@ -142,8 +180,17 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
-    private JsonObject serializePlayerLookingAt(HitResult target) {
+    public static JsonObject serializePlayerLookingAt(HitResult target) {
         JsonObject obj = new JsonObject();
+        if ( target != null ) {
+            Vec3d tpos = target.getPos();
+            if ( tpos != null ) {
+                Vec3d ppos = mc.player.getPos();
+                obj.add("pos", Serializer.toJsonTree(tpos));
+                obj.addProperty("distanceXYZ", ppos.distanceTo(tpos));
+                obj.addProperty("distanceXZ",  Math.sqrt(Math.pow(ppos.x-tpos.x, 2) + Math.pow(ppos.z-tpos.z, 2)));
+            }
+        }
         if ( target.getType() == HitResult.Type.BLOCK ) {
             obj.add("block", serializeBlockState(target));
         } else if ( target.getType() == HitResult.Type.ENTITY ) {
@@ -153,14 +200,25 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
+    private JsonObject serializePlayer() {
+        JsonObject obj = serializeEntity(mc.player);
+        obj.add("looking_at", serializePlayerLookingAt(mc.crosshairTarget));
+        obj.add("inventory", Serializer.toJsonTree(mc.player.getInventory()));
+        obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
+        obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
+        obj.add("defense", GSON.toJsonTree(statusBarTracker.getDefense()));
+        obj.add("skills", GSON.toJsonTree(XPInformation.getInstance().getSkillInfoMap()));
+        return obj;
+    }
+
     private JsonObject buildJson() {
         JsonObject obj = new JsonObject();
-        PlayerEntity player = (PlayerEntity) mc.getCameraEntity();
-        if ( player != null ) {
-            JsonObject player_obj = serializeEntity(player);
-            player_obj.add("looking_at", serializePlayerLookingAt(mc.crosshairTarget));
-            obj.add("player", player_obj);
-            obj.addProperty("biome", getBiomeId(player.getPos()));
+        if ( mc.player != null ) {
+            obj.add("player", serializePlayer());
+            obj.addProperty("biome", getBiomeId(mc.player.getPos()));
+        }
+        if ( locraw != null ) {
+            obj.add("locraw", GSON.toJsonTree(locraw));
         }
         return obj;
     }
@@ -213,6 +271,7 @@ public class StatusHandler implements HttpHandler {
 
             byte[] bytes = body.getBytes();
             http.getResponseHeaders().set("X-Processing-Time", Long.toString(stopwatch.getTime()));
+//            http.getResponseHeaders().set("Connection", "close");
             http.sendResponseHeaders(status, bytes.length);
 
             OutputStream os = http.getResponseBody();

@@ -2,12 +2,12 @@ package net.fabricmc.example.mixin;
 
 import net.fabricmc.example.ExampleMod;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.Entity;
@@ -32,7 +32,7 @@ public class MixinLivingEntity {
     //        }
     //    }
 
-    private static HashSet<String> knownEntities = new HashSet<String>();
+//    private static HashSet<String> knownEntities = new HashSet<String>();
 
     // works
     @Inject(method = "swingHand(Lnet/minecraft/util/Hand;)V", at = @At("HEAD"))
@@ -117,12 +117,13 @@ public class MixinLivingEntity {
         }
     }
 
-    @Inject(method = "getAttacking()Lnet/minecraft/entity/LivingEntity;", at = @At("HEAD"))
-    private void getAttacking(CallbackInfoReturnable<LivingEntity> cir) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": getAttacking");
-        }
-    }
+//  works, but strange
+//    @Inject(method = "getAttacking()Lnet/minecraft/entity/LivingEntity;", at = @At("HEAD"))
+//    private void getAttacking(CallbackInfoReturnable<LivingEntity> cir) {
+//        if ( ExampleMod.LOGGER != null ) {
+//            ExampleMod.LOGGER.info("[d] " + this.toString() + ": getAttacking");
+//        }
+//    }
 
     @Inject(method = "attackLivingEntity(Lnet/minecraft/entity/LivingEntity;)V", at = @At("HEAD"))
     private void attackLivingEntity(LivingEntity target, CallbackInfo ci) {
@@ -131,12 +132,13 @@ public class MixinLivingEntity {
         }
     }
 
-    @Inject(method = "onAttacking(Lnet/minecraft/entity/Entity;)V", at = @At("HEAD"))
-    private void getAttacking(Entity entity, CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": onAttacking");
-        }
-    }
+    // causes exceptions!
+//    @Inject(method = "onAttacking(Lnet/minecraft/entity/Entity;)V", at = @At("HEAD"))
+//    private void onAttacking(Entity entity, CallbackInfo ci) {
+//        if ( ExampleMod.LOGGER != null ) {
+//            ExampleMod.LOGGER.info("[d] " + this.toString() + ": onAttacking");
+//        }
+//    }
 
     @Inject(method = "playHurtSound(Lnet/minecraft/entity/damage/DamageSource;)V", at = @At("HEAD"))
     private void playHurtSound(DamageSource source, CallbackInfo ci) {

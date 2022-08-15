@@ -18,7 +18,7 @@ public abstract class MixinItemStack
     @Shadow
     public abstract Item getItem();
 
-    @Inject(method = "getMaxCount()I", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getMaxCount", at = @At("HEAD"), cancellable = true)
     public void getMaxCount(CallbackInfoReturnable<Integer> ci)
     {
         ExampleMod.LOGGER.info("[d] getMaxStackSize");

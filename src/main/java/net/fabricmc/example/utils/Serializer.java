@@ -9,9 +9,13 @@ import com.google.gson.reflect.TypeToken;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockPos.Mutable;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
+import net.minecraft.client.gui.screen.Screen;
+
+import net.fabricmc.loader.api.metadata.ModMetadata;
 
 public class Serializer {
 
@@ -28,6 +32,18 @@ public class Serializer {
             new JsonSerializer<BlockPos>() {
                 @Override
                 public JsonElement serialize(BlockPos src, Type typeOfSrc, JsonSerializationContext context) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("x", src.getX());
+                    obj.addProperty("y", src.getY());
+                    obj.addProperty("z", src.getZ());
+                    return obj;
+                }
+            })
+        .registerTypeAdapter(
+            BlockPos.Mutable.class, 
+            new JsonSerializer<BlockPos.Mutable>() {
+                @Override
+                public JsonElement serialize(BlockPos.Mutable src, Type typeOfSrc, JsonSerializationContext context) {
                     JsonObject obj = new JsonObject();
                     obj.addProperty("x", src.getX());
                     obj.addProperty("y", src.getY());
@@ -65,12 +81,41 @@ public class Serializer {
                 }
             })
         .registerTypeAdapter(
+            ModMetadata.class,
+            new JsonSerializer<ModMetadata>() {
+                @Override
+                public JsonElement serialize(ModMetadata src, Type typeOfSrc, JsonSerializationContext context) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("id", src.getId());
+                    obj.addProperty("name", src.getName());
+                    obj.addProperty("type", src.getType());
+                    obj.addProperty("version", src.getVersion().toString());
+                    return obj;
+                }
+            })
+        .registerTypeAdapter(
             PlayerInventory.class, 
             new JsonSerializer<PlayerInventory>() {
                 @Override
                 public JsonElement serialize(PlayerInventory src, Type typeOfSrc, JsonSerializationContext context) {
                     JsonObject obj = new JsonObject();
                     obj.addProperty("selectedSlot", src.selectedSlot);
+                    obj.addProperty("swappableSlot", src.getSwappableHotbarSlot());
+                    return obj;
+                }
+            })
+        // XXX not works!
+        .registerTypeAdapter(
+            Screen.class, 
+            new JsonSerializer<Screen>() {
+                @Override
+                public JsonElement serialize(Screen src, Type typeOfSrc, JsonSerializationContext context) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("title", src.getTitle().getString());
+                    obj.addProperty("narratedTitle", src.getNarratedTitle().getString());
+                    obj.addProperty("children", src.children().size());
+                    obj.addProperty("width", src.width);
+                    obj.addProperty("height", src.height);
                     return obj;
                 }
             })
@@ -102,5 +147,9 @@ public class Serializer {
 
     public static JsonElement toJsonTree(Object src) {
         return GSON.toJsonTree(src);
+    }
+
+    public static JsonElement toJsonTree(Object src, Type typeOfSrc) {
+        return GSON.toJsonTree(src, typeOfSrc);
     }
 }

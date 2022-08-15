@@ -68,22 +68,37 @@ public class OpenNbtCompound extends NbtCompound {
     }
 
     public JsonObject asJson() {
+        return asJson(0);
+    }
+
+    public static int WITH_LORE = 1;
+    public static int WITH_TEXTURES = 2;
+
+    public static int WITH_EVERYTHING = 255;
+
+    public JsonObject asJson(int flags) {
         JsonObject obj = new JsonObject();
         for (Map.Entry<String, NbtElement> entry : toMap().entrySet()) {
             String key = entry.getKey();
-            if ( key.equals("Lore") || key.equals("textures") ) // XXX
+            if ( key.equals("Lore") && ((flags & WITH_LORE) == 0) )
+                continue;
+            if ( key.equals("textures") && ((flags & WITH_TEXTURES) == 0) )
                 continue;
             NbtElement value = entry.getValue();
             switch( value.getType() ){
-//				case BYTE_ARRAY_TYPE:
-//					break;
 				case BYTE_TYPE:
                     obj.addProperty(key, ((NbtByte)value).byteValue());
 					break;
 				case COMPOUND_TYPE:
                     OpenNbtCompound tmp = new OpenNbtCompound();
                     tmp.copyFrom((NbtCompound)value);
-                    obj.add(key, tmp.asJson());
+                    if ( key.equals("display") && getInt("overrideMeta") == 1 ){
+                        // Lore will contain some dynamic info, e.g. number of items in sacks
+                        obj.add(key, tmp.asJson(WITH_LORE));
+                    } else {
+                        // waste of bytes
+                        obj.add(key, tmp.asJson());
+                    }
 					break;
 				case DOUBLE_TYPE:
                     obj.addProperty(key, ((NbtDouble)value).doubleValue());
@@ -110,7 +125,7 @@ public class OpenNbtCompound extends NbtCompound {
 					obj.addProperty(key, ((NbtShort)value).shortValue());
 					break;
                 default:
-                    // also covers STRING_TYPE
+                    // also covers STRING_TYPE and BYTE_ARRAY_TYPE
                     obj.addProperty(key, value.asString());
                     break;
             }

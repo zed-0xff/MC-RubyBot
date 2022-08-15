@@ -2,6 +2,8 @@
 // shortened, adapted for fabric
 package net.fabricmc.example.utils;
 
+import net.fabricmc.example.ExampleMod;
+
 import net.minecraft.util.StringHelper;
 
 import com.google.common.base.Splitter;
@@ -13,6 +15,16 @@ import java.util.regex.Pattern;
 
 public class XPInformation {
 	private static final XPInformation INSTANCE = new XPInformation();
+
+    /**
+     * The amount of usable tickers or -1 if none are in the action bar.
+     */
+    public static int tickers = -1;
+
+    /**
+     * The total amount of possible tickers or 0 if none are in the action bar.
+     */
+    public static int maxTickers = 0;
 
 	public static XPInformation getInstance() {
 		return INSTANCE;
@@ -28,8 +40,6 @@ public class XPInformation {
 	private final HashMap<String, SkillInfo> initials = new HashMap<>();
 	private final HashMap<String, SkillInfo> skillInfoMap = new HashMap<>();
 	public HashMap<String, Float> updateWithPercentage = new HashMap<>();
-
-	public int correctionCounter = 0;
 
 	private static final Splitter SPACE_SPLITTER = Splitter.on("  ").omitEmptyStrings().trimResults();
 	private static final Pattern SKILL_PATTERN = Pattern.compile(
@@ -60,6 +70,12 @@ public class XPInformation {
         List<String> components = SPACE_SPLITTER.splitToList(msg);
         String skillS = null;
         SkillInfo skillInfo = null;
+
+        for (String component : components) {
+            if (component.contains("Ⓞ") || component.contains("ⓩ")) {
+                parseTickers(component);
+            }
+        }
 
         for (String component : components) {
             if ( component.startsWith("§3" ))
@@ -123,4 +139,37 @@ public class XPInformation {
         }
     }
 
+    // from https://github.com/BiscuitDevelopment/SkyblockAddons
+    /**
+     * Parses the ticker section and updates {@link #tickers} and {@link #maxTickers} accordingly.
+     * {@link #tickers} being usable tickers and {@link #maxTickers} being the total amount of possible tickers.
+     *
+     * @param tickerSection Ticker section of the action bar
+     * @return null or {@code tickerSection} if the ticker display is disabled
+     */
+    private void parseTickers(String tickerSection) {
+        // Zombie with full charges: §a§lⓩⓩⓩⓩ§2§l§r
+        // Zombie with one used charges: §a§lⓩⓩⓩ§2§lⓄ§r
+        // Scorpion tickers: §e§lⓄⓄⓄⓄ§7§l§r
+        // Ornate: §e§lⓩⓩⓩ§6§lⓄⓄ§r
+
+        // Zombie uses ⓩ with color code a for usable charges, Ⓞ with color code 2 for unusable
+        // Scorpion uses Ⓞ with color code e for usable tickers, Ⓞ with color code 7 for unusable
+        // Ornate uses ⓩ with color code e for usable charges, Ⓞ with color code 6 for unusable
+        tickers = 0;
+        maxTickers = 0;
+        boolean hitUnusables = false;
+        for (char character : tickerSection.toCharArray()) {
+            if (!hitUnusables && (character == '7' || character == '2' || character == '6')) {
+                // While the unusable tickers weren't hit before and if it reaches a grey(scorpion) or dark green(zombie)
+                // or gold (ornate) color code, it means those tickers are used, so stop counting them.
+                hitUnusables = true;
+            } else if (character == 'Ⓞ' || character == 'ⓩ') { // Increase the ticker counts
+                if (!hitUnusables) {
+                    tickers++;
+                }
+                maxTickers++;
+            }
+        }
+    }
 }

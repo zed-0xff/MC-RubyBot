@@ -1,9 +1,10 @@
 package net.fabricmc.example.handlers;
 
+import net.fabricmc.example.*;
+import net.fabricmc.example.mixin.*;
+
 import net.fabricmc.example.OpenNbtCompound;
-import net.fabricmc.example.utils.Serializer;
-import net.fabricmc.example.utils.StatusBarTracker;
-import net.fabricmc.example.utils.XPInformation;
+import net.fabricmc.example.utils.*;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
@@ -11,6 +12,10 @@ import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.minecraft.block.BlockState;
@@ -21,6 +26,8 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.mob.HostileEntity;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.item.ItemStack;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Property;
@@ -32,9 +39,16 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.Formatting;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.scoreboard.ScoreboardPlayerScore;
+import net.minecraft.scoreboard.Team;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
 
@@ -44,16 +58,52 @@ import org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.time.StopWatch;
 import java.util.UUID;
 
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.Slot;
+
 public class StatusHandler implements HttpHandler {
     public static final Logger LOGGER = LoggerFactory.getLogger("modid");
+    private static ModConfig CONFIG = null;
     private static MinecraftClient mc;
     private static final Gson GSON = new Gson();
     public static Locraw locraw;
     public static final StatusBarTracker statusBarTracker = new StatusBarTracker();
+    private static HashMap<String, InputEvent> inputEvents = new HashMap<String, InputEvent>();
+    private static HashMap<Integer, String> commands = new HashMap<Integer, String>();
+    private static String overlay;
 
 	public StatusHandler(MinecraftClient mc) {
 	    StatusHandler.mc = mc;
+        CONFIG = ExampleMod.CONFIG;
 	}
+
+    public static void onCommand(String command){
+        commands.put(ExampleMod.tick, command);
+    }
+
+    public static void logInputEvent(String name, int state) {
+        InputEvent e = inputEvents.get(name);
+        if ( e != null ) {
+            if ( e.state == state ) {
+                e.age++;
+            } else {
+                e.state = state;
+                e.age = 0;
+            }
+        } else {
+            inputEvents.put(name, new InputEvent(state));
+        }
+    }
+
+    static class InputEvent {
+        int state;
+        int age = 0;
+
+        InputEvent(int state) {
+            this.state = state;
+        }
+    }
 
     // {"server":"mini31CG","gametype":"SKYBLOCK","mode":"foraging_1","map":"The Park"}
     public class Locraw {
@@ -63,12 +113,13 @@ public class StatusHandler implements HttpHandler {
         String map;
     }
 
-    public static void handleMessage(int type, String msg) {
-        if (msg.startsWith("{") && msg.endsWith("}")) {
-            setLocraw(msg);
-        } else if (type == 2) {
+    public static void handleMessage(boolean isOverlay, String msg) {
+        if (isOverlay) {
+            overlay = msg;
             statusBarTracker.update(msg, false);
             XPInformation.getInstance().onChatReceived(msg);
+        } else if (msg.startsWith("{") && msg.endsWith("}")) {
+            setLocraw(msg);
         }
     }
 
@@ -86,12 +137,13 @@ public class StatusHandler implements HttpHandler {
         return dist * 20;
     }
 
-    private String getBiomeId(Vec3d pos) {
-        return mc.world.getRegistryManager().
-            get(Registry.BIOME_KEY).
-            getId(mc.world.getBiome(new BlockPos(pos)).value()).
-            toString();
-    }
+// exceptions when teleporting between islands
+//    private static String getBiomeId(Vec3d pos) {
+//        return mc.world.getRegistryManager().
+//            get(Registry.BIOME_KEY).
+//            getId(mc.world.getBiome(new BlockPos(pos)).value()).
+//            toString();
+//    }
 
     public static JsonObject serializeBlockState(BlockState state) {
         Identifier id = Registry.BLOCK.getId(state.getBlock());
@@ -113,6 +165,7 @@ public class StatusHandler implements HttpHandler {
         BlockPos pos = ((BlockHitResult) target).getBlockPos();
         BlockState state = mc.world.getBlockState(pos);
         JsonObject obj = serializeBlockState(state);
+        obj.add( "pos", Serializer.toJsonTree(pos) );
         obj.addProperty(
                 "canPathfindThrough",
                 state.canPathfindThrough(mc.world, pos, net.minecraft.entity.ai.pathing.NavigationType.LAND)
@@ -125,21 +178,19 @@ public class StatusHandler implements HttpHandler {
         LOGGER.info(obj.toString());
     }
 
-    public static JsonObject serializeEntity(Entity entity) {
+    public static JsonObject serializeEntityCompact(Entity entity) {
         if ( entity == null ) return null;
 
         Identifier id = EntityType.getId(entity.getType());
         JsonObject obj = new JsonObject();
-        obj.add("pos", Serializer.toJsonTree(entity.getPos()));
-        obj.addProperty("speed", getSpeed(entity));
-        obj.addProperty("yaw", MathHelper.wrapDegrees(entity.getYaw()));
-        obj.addProperty("pitch", MathHelper.wrapDegrees(entity.getPitch()));
         obj.addProperty("id", id.toString());
+        obj.addProperty("class", entity.getClass().getName());
+        obj.addProperty("classShort", Mappings.class2short(entity.getClass()));
+        obj.add("pos", Serializer.toJsonTree(entity.getPos()));
+        obj.add("eyePos", Serializer.toJsonTree(entity.getEyePos()));
         obj.addProperty("uuid", entity.getUuidAsString());
-        obj.add("boundingBox", Serializer.toJsonTree(entity.getBoundingBox()));
-        obj.add("visibilityBoundingBox", Serializer.toJsonTree(entity.getVisibilityBoundingBox()));
-        obj.add("boundingCenter", Serializer.toJsonTree(entity.getBoundingBox().getCenter()));
-        obj.add("visibilityBoundingCenter", Serializer.toJsonTree(entity.getVisibilityBoundingBox().getCenter()));
+        obj.addProperty("canHit", entity.canHit());
+
         String name = null;
         if ( entity.getName() != null ) {
             obj.addProperty("name", name = entity.getName().getString());
@@ -155,14 +206,43 @@ public class StatusHandler implements HttpHandler {
         if ( entity.getDisplayName() != null && !entity.getDisplayName().getString().equals(name) ) {
             obj.addProperty("display_name", entity.getDisplayName().getString());
         }
+
+        obj.add("boundingCenter", Serializer.toJsonTree(entity.getBoundingBox().getCenter()));
+        obj.add("visibilityBoundingCenter", Serializer.toJsonTree(entity.getVisibilityBoundingBox().getCenter()));
+
+        Long outlineColor = EntityCache.getExtra(entity.getUuid());
+        if ( outlineColor != null && outlineColor != 0 ) {
+            obj.addProperty("outlineColor", outlineColor);
+        }
+
+        return obj;
+    }
+
+    public static JsonObject serializeEntity(Entity entity) {
+        if ( entity == null ) return null;
+
+        EntityCache.put(entity);
+
+        JsonObject obj = serializeEntityCompact(entity);
+        obj.addProperty("pose", entity.getPose().toString());
+        obj.addProperty("speed", getSpeed(entity));
+        obj.addProperty("yaw", MathHelper.wrapDegrees(entity.getYaw()));
+        obj.addProperty("pitch", MathHelper.wrapDegrees(entity.getPitch()));
+        // causes 'Accessing LegacyRandomSource from multiple threads' exception
+//        obj.addProperty("randomBodyY", entity.getRandomBodyY());
+        obj.add("boundingBox", Serializer.toJsonTree(entity.getBoundingBox()));
+//        obj.add("visibilityBoundingBox", Serializer.toJsonTree(entity.getVisibilityBoundingBox()));
         if (entity instanceof LivingEntity) {
             LivingEntity le = (LivingEntity) entity;
+            obj.addProperty("alive", le.isAlive());
+            obj.add("attacking", serializeEntity(le.getAttacking()));
+//            obj.addProperty("activeEyeHeight", ((LivingEntityAccessor)le).invokeGetActiveEyeHeight(le.getPose(), le.getDimensions(le.getPose())));
 //            obj.addProperty("health", le.getHealth());
 //            obj.addProperty("max_health", le.getMaxHealth());
 // always meaningless or zero
-//            obj.addProperty("lastAttackTime", le.getLastAttackTime());
-//            obj.addProperty("lastAttackedTime", le.getLastAttackedTime());
-//            obj.add("lastDamageSource", Serializer.toJsonTree(le.getRecentDamageSource()));
+            obj.addProperty("lastAttackTime", le.getLastAttackTime());
+            obj.addProperty("lastAttackedTime", le.getLastAttackedTime());
+            obj.add("lastDamageSource", Serializer.toJsonTree(le.getRecentDamageSource()));
         }
         if (entity instanceof HostileEntity) {
             HostileEntity he = (HostileEntity) entity;
@@ -173,23 +253,25 @@ public class StatusHandler implements HttpHandler {
             obj.add("target", Serializer.toJsonTree(mob.getTarget()));
             obj.addProperty("isAttacking", mob.isAttacking());
         }
+        if ( entity.isRemoved() )
+            obj.addProperty("removed", true);
         OpenNbtCompound nbt = new OpenNbtCompound();
         entity.writeNbt(nbt);
         if ( nbt.getSize() > 0 )
             obj.add("nbt", nbt.asJson());
+
         return obj;
     }
 
-    public static JsonObject serializePlayerLookingAt(HitResult target) {
+    public static JsonObject serializeHitResult(HitResult target) {
+        if ( target == null ) return null;
+
         JsonObject obj = new JsonObject();
-        if ( target != null ) {
-            Vec3d tpos = target.getPos();
-            if ( tpos != null ) {
-                Vec3d ppos = mc.player.getPos();
-                obj.add("pos", Serializer.toJsonTree(tpos));
-                obj.addProperty("distanceXYZ", ppos.distanceTo(tpos));
-                obj.addProperty("distanceXZ",  Math.sqrt(Math.pow(ppos.x-tpos.x, 2) + Math.pow(ppos.z-tpos.z, 2)));
-            }
+        Vec3d tpos = target.getPos();
+        if ( tpos != null ) {
+            Vec3d epos = mc.player.getEyePos();
+            obj.add("pos", Serializer.toJsonTree(tpos));
+            obj.addProperty("distance", epos.distanceTo(tpos));
         }
         if ( target.getType() == HitResult.Type.BLOCK ) {
             obj.add("block", serializeBlockState(target));
@@ -200,27 +282,125 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
-    private JsonObject serializePlayer() {
-        JsonObject obj = serializeEntity(mc.player);
-        obj.add("looking_at", serializePlayerLookingAt(mc.crosshairTarget));
-        obj.add("inventory", Serializer.toJsonTree(mc.player.getInventory()));
-        obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
-        obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
+    public static JsonObject serializePlayerCompact() {
+        JsonObject obj = serializeEntityCompact(mc.player);
         obj.add("defense", GSON.toJsonTree(statusBarTracker.getDefense()));
+        obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
+        obj.add("hotbar", Serializer.toJsonTree(mc.player.getInventory()));
+        obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
         obj.add("skills", GSON.toJsonTree(XPInformation.getInstance().getSkillInfoMap()));
+        obj.addProperty("abilityCharges", XPInformation.tickers);
+        obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
         return obj;
     }
 
-    private JsonObject buildJson() {
-        JsonObject obj = new JsonObject();
-        if ( mc.player != null ) {
-            obj.add("player", serializePlayer());
-            obj.addProperty("biome", getBiomeId(mc.player.getPos()));
+    public static JsonObject serializePlayer() {
+        JsonObject obj = serializeEntity(mc.player);
+        obj.add("defense", GSON.toJsonTree(statusBarTracker.getDefense()));
+        obj.add("fishHook", serializeEntity(mc.player.fishHook));
+        obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
+        obj.add("hotbar", Serializer.toJsonTree(mc.player.getInventory()));
+        obj.add("inventory", serializeInventory(mc.player.getInventory()));
+        obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
+        obj.add("skills", GSON.toJsonTree(XPInformation.getInstance().getSkillInfoMap()));
+        obj.addProperty("abilityCharges", XPInformation.tickers);
+        obj.addProperty("experienceLevel", mc.player.experienceLevel);
+        obj.addProperty("experienceProgress", mc.player.experienceProgress);
+        obj.addProperty("reachDistance", mc.interactionManager.getReachDistance());
+        obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
+        return obj;
+    }
+
+    private static JsonArray serializeInventory(Inventory src) {
+        if ( src == null ) return null;
+        JsonArray arr = new JsonArray();
+        if ( src.isEmpty() ) return arr;
+        for ( int i=0; i<src.size(); i++ ) {
+            ItemStack stack = src.getStack(i);
+            if ( stack == null ) {
+                arr.add((JsonObject)null);
+                continue;
+            }
+
+            OpenNbtCompound nbt = new OpenNbtCompound();
+            stack.writeNbt(nbt);
+            JsonObject obj = nbt.asJson();
+            obj.addProperty("maxCount", stack.getMaxCount());
+            arr.add(obj);
         }
-        if ( locraw != null ) {
-            obj.add("locraw", GSON.toJsonTree(locraw));
+        return arr;
+    }
+
+    public static String defaultToString(Object o) {
+        return o.getClass().getName() + "@" + Integer.toHexString(o.hashCode());
+    }
+
+    private static JsonObject serializeSlot(Slot slot) {
+        if ( slot == null ) return null;
+        JsonObject obj = new JsonObject();
+        obj.addProperty("id", slot.id);
+        obj.addProperty("index", slot.getIndex());
+        obj.addProperty("x", slot.x);
+        obj.addProperty("y", slot.y);
+        obj.addProperty("inventoryId", slot.inventory == mc.player.getInventory() ? "player" : defaultToString(slot.inventory));
+        return obj;
+    }
+
+    private static JsonObject serializeScreen(net.minecraft.client.gui.screen.Screen src) {
+        if ( src == null ) return null;
+        JsonObject obj = new JsonObject();
+        obj.addProperty("class", src.getClass().getName());
+        obj.addProperty("classShort", Mappings.class2short(src.getClass()));
+        obj.addProperty("title", src.getTitle().getString());
+        obj.addProperty("narratedTitle", src.getNarratedTitle().getString());
+        obj.addProperty("width", src.width);
+        obj.addProperty("height", src.height);
+        if ( src instanceof HandledScreen ) {
+            obj.addProperty("x", ((ContainerAccessor)src).getX());
+            obj.addProperty("y", ((ContainerAccessor)src).getY());
+            ScreenHandler handler = ((HandledScreen)src).getScreenHandler();
+            obj.addProperty("syncId", handler.syncId);
+            JsonArray arr = new JsonArray();
+            JsonObject inventories = new JsonObject();
+            for ( Slot slot : handler.slots ) {
+                arr.add(serializeSlot(slot));
+                String inventoryId = defaultToString(slot.inventory);
+                if ( !inventories.has(inventoryId) && slot.inventory != mc.player.getInventory() )
+                    inventories.add(inventoryId, serializeInventory(slot.inventory));
+            }
+            obj.add("slots", arr);
+            obj.add("inventories", inventories);
         }
         return obj;
+    }
+
+    public static ArrayList<String> getPlayerList() {
+        ArrayList<String> r = new ArrayList<String>();
+        try {
+            mc.getNetworkHandler().getPlayerList()
+                .stream()
+                .sorted((o1, o2)->o1.getProfile().getName().compareTo(o2.getProfile().getName()))
+                .forEach( ple -> {
+                    if ( ple.getDisplayName() != null ) {
+                        r.add( Formatting.strip(ple.getDisplayName().getString()) );
+                    }
+                });
+        } catch ( Exception e ) {
+        }
+        return r;
+    }
+
+    public static String getPlayerListFooter() {
+        try {
+            Text footer = ((PlayerListHudAccessor)mc.inGameHud.getPlayerListHud()).getFooter();
+            if ( footer == null ) {
+                return null;
+            } else {
+                return Formatting.strip(footer.getString());
+            }
+        } catch ( Exception e ) {
+            return null;
+        }
     }
 
     public static Entity getEntityFromUUID(UUID uuid) {
@@ -256,22 +436,25 @@ public class StatusHandler implements HttpHandler {
                         status = 404;
                     }
                 } else {
-                    obj = buildJson();
+                    obj = buildJson(null);
                     obj.addProperty("processing_time", stopwatch.getTime());
                 }
 
                 if ( obj != null )
-                    body = obj.toString();
+                    body = GSON.toJson(obj); // removes null values
 
                 http.getResponseHeaders().set("Content-Type", "application/json");
             } catch (Exception e) {
-                body = e.toString();
+                body = e + "\n\n";
+                for ( java.lang.StackTraceElement t : e.getStackTrace() ){
+                    body += "  " + t + "\n";
+                }
                 status = 500;
             }
 
             byte[] bytes = body.getBytes();
             http.getResponseHeaders().set("X-Processing-Time", Long.toString(stopwatch.getTime()));
-//            http.getResponseHeaders().set("Connection", "close");
+            http.getResponseHeaders().set("Connection", "close");
             http.sendResponseHeaders(status, bytes.length);
 
             OutputStream os = http.getResponseBody();
@@ -282,4 +465,65 @@ public class StatusHandler implements HttpHandler {
             LOGGER.error(e.toString());
         }
 	}
+
+    // from Skyblocker
+    public static List<String> getSidebar() {
+        try {
+            if (mc.player == null) return Collections.emptyList();
+            Scoreboard scoreboard = mc.player.getScoreboard();
+            ScoreboardObjective objective = scoreboard.getObjectiveForSlot(1);
+            List<String> lines = new ArrayList<>();
+            for (ScoreboardPlayerScore score : scoreboard.getAllPlayerScores(objective)) {
+                Team team = scoreboard.getPlayerTeam(score.getPlayerName());
+                if (team != null) {
+                    String line = team.getPrefix().getString() + team.getSuffix().getString();
+                    if (line.trim().length() > 0) {
+                        lines.add(Formatting.strip(line));
+                    }
+                }
+            }
+
+            if (objective != null) {
+                lines.add(objective.getDisplayName().getString());
+                Collections.reverse(lines);
+            }
+            return lines;
+        } catch (NullPointerException e) {
+            return null;
+        }
+    }
+
+    public static JsonObject serializeWorld(World world) {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("time", world.getTime());
+        obj.addProperty("timeOfDay", world.getTimeOfDay());
+        obj.addProperty("tickOrder", world.getTickOrder());
+        obj.addProperty("ambientDarkness", world.getAmbientDarkness());
+        return obj;
+    }
+
+    public static JsonObject buildJson(JsonObject obj) {
+        if ( obj == null ) {
+            obj = new JsonObject();
+        }
+        obj.addProperty("tick", ExampleMod.tick);
+        if ( mc.player != null ) {
+            obj.add("player", serializePlayer());
+//            obj.addProperty("biome", getBiomeId(mc.player.getPos()));
+        }
+        if ( locraw != null ) {
+            obj.add("locraw", GSON.toJsonTree(locraw));
+        }
+        obj.add("screen", serializeScreen(mc.currentScreen));
+        obj.add("sidebar", GSON.toJsonTree(getSidebar()));
+        obj.add("input", GSON.toJsonTree(inputEvents));
+        obj.add("commands", GSON.toJsonTree(commands));
+        obj.addProperty("overlay", overlay);
+        obj.add("playerList", GSON.toJsonTree(getPlayerList()));
+        obj.addProperty("playerListFooter", getPlayerListFooter());
+        obj.add("world", serializeWorld(mc.world));
+        obj.addProperty("status", "full");
+        return obj;
+    }
+
 }

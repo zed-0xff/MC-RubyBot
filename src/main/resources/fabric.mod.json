@@ -20,6 +20,9 @@
   "entrypoints": {
     "main": [
       "net.fabricmc.example.ExampleMod"
+    ],
+    "modmenu": [
+      "net.fabricmc.example.ModMenuApiImpl"
     ]
   },
   "mixins": [

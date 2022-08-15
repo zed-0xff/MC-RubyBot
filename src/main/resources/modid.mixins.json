@@ -6,15 +6,31 @@
   "mixins": [
   ],
   "client": [
-    "MixinClientPlayerEntity",
+    "ContainerAccessor",
+    "EntityRenderDispatcherAccessor",
+    "LivingEntityAccessor",
+    "MessagesAccessor",
+    "MinecraftClientAccessor",
     "MixinClientPlayNetworkHandler",
-    "MixinCommandSuggestions",
+    "MixinClientPlayerEntity",
+    "MixinClientPlayerInteractionManager",
     "MixinDamageTracker",
+    "MixinEntityRenderDispatcher",
     "MixinFishingBobberEntityRenderer",
+    "MixinHandledScreen",
+    "MixinInGameHud",
+    "MixinItemEntity",
+    "MixinItemPickupParticle",
+    "MixinItemRenderer",,
     "MixinItemStack",
     "MixinLivingEntity",
     "MixinLivingEntityRenderer",
-    "MixinMinecraftClient"
+    "MixinMinecraftClient",
+    "MixinMouse",
+    "MixinScreenHandler",
+    "MixinSoundManager",
+    "MouseAccessor",
+    "PlayerListHudAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

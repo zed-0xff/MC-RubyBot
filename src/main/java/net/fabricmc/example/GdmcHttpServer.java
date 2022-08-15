@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 import net.minecraft.client.MinecraftClient;
 
 public class GdmcHttpServer {
-    private static HttpServer httpServer;
+    private static HttpServer httpServer = null;
     private static MinecraftClient mc;
     public static final Logger LOGGER = LoggerFactory.getLogger("modid");
 
@@ -20,18 +20,23 @@ public class GdmcHttpServer {
     public static void startServer(MinecraftClient mc) throws IOException {
         GdmcHttpServer.mc = mc;
 
-        httpServer = HttpServer.create(new InetSocketAddress(HOST, PORT), 0);
-        httpServer.setExecutor(null); // creates a default executor
-        createContexts();
-        httpServer.start();
-        LOGGER.info("HTTP server started on http://" + HOST + ":" + PORT);
-    }
-
-    public static void stopServer() {
-        if(httpServer != null) {
-            httpServer.stop(5);
+        if ( httpServer == null ) {
+            httpServer = HttpServer.create(new InetSocketAddress(HOST, PORT), 0);
+            httpServer.setExecutor(null);
+            createContexts();
+            LOGGER.info("[.] HTTP server starting on http://" + HOST + ":" + PORT);
+            httpServer.start();
+            LOGGER.info("[.] HTTP server started on http://" + HOST + ":" + PORT);
+        } else {
+            LOGGER.warn("[?] HTTP server already started on http://" + HOST + ":" + PORT);
         }
     }
+
+//    public static void stopServer() {
+//        if(httpServer != null) {
+//            httpServer.stop(5);
+//        }
+//    }
 
     private static void createContexts() {
         httpServer.createContext("/", new StatusHandler(mc));

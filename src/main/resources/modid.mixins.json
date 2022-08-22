@@ -8,15 +8,19 @@
   "client": [
     "ContainerAccessor",
     "EntityRenderDispatcherAccessor",
+    "InGameHudAccessor",
     "LivingEntityAccessor",
     "MessagesAccessor",
     "MinecraftClientAccessor",
+    "MixinClientConnection",
     "MixinClientPlayNetworkHandler",
     "MixinClientPlayerEntity",
     "MixinClientPlayerInteractionManager",
     "MixinDamageTracker",
     "MixinEntityRenderDispatcher",
+    "MixinBlockEntityRenderDispatcher",
     "MixinFishingBobberEntityRenderer",
+    "MixinGameRenderer",
     "MixinHandledScreen",
     "MixinInGameHud",
     "MixinItemEntity",
@@ -30,7 +34,8 @@
     "MixinScreenHandler",
     "MixinSoundManager",
     "MouseAccessor",
-    "PlayerListHudAccessor"
+    "PlayerListHudAccessor",
+    "WorldRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

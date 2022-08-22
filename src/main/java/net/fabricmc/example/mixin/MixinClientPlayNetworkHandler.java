@@ -1,8 +1,8 @@
 package net.fabricmc.example.mixin;
 
-import net.fabricmc.example.ExampleMod;
 import net.fabricmc.example.handlers.ActionHandler;
 import net.fabricmc.example.handlers.StatusHandler;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,11 +15,8 @@ public abstract class MixinClientPlayNetworkHandler {
     private void onGameMessage(net.minecraft.network.packet.s2c.play.GameMessageS2CPacket packet, CallbackInfo ci)
     {
         String msg = packet.content().getString();
-//        if ( ExampleMod.LOGGER != null && !packet.overlay() ) {
-//            ExampleMod.LOGGER.info("[d] onGameMessage overlay=" + packet.overlay() + " : " + msg);
-//        }
         StatusHandler.handleMessage(packet.overlay(), msg);
-        if ( ActionHandler.hideMessage(packet.overlay(), msg)) {
+        if ( ActionHandler.shouldHideMessage(packet.overlay(), msg)) {
             ci.cancel();
         }
     }

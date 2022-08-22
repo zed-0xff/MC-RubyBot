@@ -1,6 +1,8 @@
 package net.fabricmc.example.mixin;
 
 import net.fabricmc.example.ExampleMod;
+import net.fabricmc.example.utils.EntityCache;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,6 +22,7 @@ import net.minecraft.sound.SoundEvent;
 import net.fabricmc.example.handlers.ActionHandler;;
 import net.fabricmc.example.handlers.StatusHandler;
 import java.util.HashSet;
+import java.util.UUID;
 
 // counter-attack attacker on damage taken
 @Mixin(LivingEntity.class)
@@ -34,23 +37,23 @@ public class MixinLivingEntity {
 
 //    private static HashSet<String> knownEntities = new HashSet<String>();
 
-    // works
-    @Inject(method = "swingHand(Lnet/minecraft/util/Hand;)V", at = @At("HEAD"))
-    private void swingHand(Hand hand, CallbackInfo ci) {
-        if (!(((Object)this) instanceof PlayerEntity)) {
-//            ExampleMod.LOGGER.info("[d] " + this.toString() + ": swingHand");
-            LivingEntity e = (LivingEntity)(Object)this;
-//            String id = EntityType.getId(e.getType()).toString();
-//            if ( !knownEntities.contains(id) ) {
-//                knownEntities.add(id);
-//                StatusHandler.logEntity(e);
+//    // works
+//    @Inject(method = "swingHand(Lnet/minecraft/util/Hand;)V", at = @At("HEAD"))
+//    private void swingHand(Hand hand, CallbackInfo ci) {
+//        if (!(((Object)this) instanceof PlayerEntity)) {
+////            ExampleMod.LOGGER.info("[d] " + this.toString() + ": swingHand");
+//            LivingEntity e = (LivingEntity)(Object)this;
+////            String id = EntityType.getId(e.getType()).toString();
+////            if ( !knownEntities.contains(id) ) {
+////                knownEntities.add(id);
+////                StatusHandler.logEntity(e);
+////            }
+//            if ( ActionHandler.log.length() > 10*1024*1024 ) {
+//                ActionHandler.log = new String();
 //            }
-            if ( ActionHandler.log.length() > 10*1024*1024 ) {
-                ActionHandler.log = new String();
-            }
-            ActionHandler.log = ActionHandler.log + StatusHandler.serializeEntity(e).toString() + "\n";
-        }
-    }
+//            ActionHandler.log = ActionHandler.log + StatusHandler.serializeEntity(e).toString() + "\n";
+//        }
+//    }
 
     // works
     @Inject(method = "onDeath(Lnet/minecraft/entity/damage/DamageSource;)V", at = @At("HEAD"))
@@ -59,6 +62,15 @@ public class MixinLivingEntity {
 //            ExampleMod.LOGGER.info("[d] " + this.toString() + ": onDeath from " + ds.getName());
 //        }
     }
+
+    @Inject(method = "canHit()Z", at = @At("HEAD"), cancellable = true)
+    private void canHit(CallbackInfoReturnable<Boolean> cir) {
+        UUID uuid = ((Entity)(Object)this).getUuid();
+        long hide = EntityCache.getExtra(uuid, EntityCache.HIDE_ENTITY);
+        if ( hide != 0 )
+            cir.setReturnValue(false);
+    }
+
 
     @Inject(method = "animateDamage()V", at = @At("HEAD"))
     private void animateDamage(CallbackInfo ci) {
@@ -71,49 +83,6 @@ public class MixinLivingEntity {
     private void applyDamage(DamageSource source, float amount, CallbackInfo ci) {
         if ( ExampleMod.LOGGER != null ) {
             ExampleMod.LOGGER.info("[d] " + this.toString() + ": applyDamage " + amount);
-        }
-    }
-
-    @Inject(method = "drop(Lnet/minecraft/entity/damage/DamageSource;)V", at = @At("HEAD"))
-    private void drop(DamageSource ds, CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": drop");
-        }
-    }
-
-    @Inject(method = "dropEquipment(Lnet/minecraft/entity/damage/DamageSource;IZ)V", at = @At("HEAD"))
-    private void dropEquipment(DamageSource source, int lootingMultiplier, boolean allowDrops, CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": dropEquipment");
-        }
-    }
-
-    @Inject(method = "dropLoot(Lnet/minecraft/entity/damage/DamageSource;Z)V", at = @At("HEAD"))
-    private void dropLoot(DamageSource source, boolean causedByPlayer, CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": dropLoot");
-        }
-    }
-
-    @Inject(method = "dropInventory()V", at = @At("HEAD"))
-    private void dropInventory(CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": dropInventory");
-        }
-    }
-
-    @Inject(method = "dropXp()V", at = @At("HEAD"))
-    private void dropXp(CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": dropXp");
-        }
-    }
-
-    // all of these not working :(
-    @Inject(method = "getAttacker()Lnet/minecraft/entity/LivingEntity;", at = @At("HEAD"))
-    private void getAttacker(CallbackInfoReturnable<LivingEntity> cir) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": getAttacker");
         }
     }
 

@@ -12,16 +12,13 @@ import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -36,17 +33,16 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.Formatting;
-import net.minecraft.scoreboard.Scoreboard;
-import net.minecraft.scoreboard.ScoreboardObjective;
-import net.minecraft.scoreboard.ScoreboardPlayerScore;
-import net.minecraft.scoreboard.Team;
+import net.minecraft.scoreboard.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
 import net.minecraft.world.World;
+import net.minecraft.block.entity.BlockEntity;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -59,8 +55,11 @@ import org.apache.commons.lang3.time.StopWatch;
 import java.util.UUID;
 
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.client.gui.widget.*;
 
 public class StatusHandler implements HttpHandler {
     public static final Logger LOGGER = LoggerFactory.getLogger("modid");
@@ -158,18 +157,40 @@ public class StatusHandler implements HttpHandler {
                 obj.addProperty(prop.getName(), state.get(prop).toString());
             }
         }
+        if ( CONFIG.experimental ) {
+            obj.add( "tags", Serializer.toJsonTree( state.streamTags().toList() ));
+        }
+        return obj;
+    }
+
+    private static JsonObject serializeBlockEntity(BlockEntity be) {
+        JsonObject obj = new JsonObject();
+        Identifier id = BlockEntityType.getId(be.getType());
+        obj.addProperty("id", id.toString());
+        obj.add("nbt", OpenNbtCompound.toJson(be.createNbt()));
         return obj;
     }
 
     private static JsonObject serializeBlockState(HitResult target) {
         BlockPos pos = ((BlockHitResult) target).getBlockPos();
+        Direction side = ((BlockHitResult) target).getSide();
         BlockState state = mc.world.getBlockState(pos);
         JsonObject obj = serializeBlockState(state);
         obj.add( "pos", Serializer.toJsonTree(pos) );
+        obj.addProperty( "side", side.getName());
         obj.addProperty(
                 "canPathfindThrough",
                 state.canPathfindThrough(mc.world, pos, net.minecraft.entity.ai.pathing.NavigationType.LAND)
                 );
+        obj.addProperty( "hardness", state.getBlock().getHardness() );
+        obj.addProperty( "canHarvest", mc.player.canHarvest(state) );
+        obj.addProperty( "blockBreakingSpeed", mc.player.getBlockBreakingSpeed(state) );
+
+        BlockEntity be = mc.world.getBlockEntity(pos);
+        if ( be != null ) {
+            obj.add( "blockEntity", serializeBlockEntity(be));
+        }
+
         return obj;
     }
 
@@ -183,7 +204,8 @@ public class StatusHandler implements HttpHandler {
 
         Identifier id = EntityType.getId(entity.getType());
         JsonObject obj = new JsonObject();
-        obj.addProperty("id", id.toString());
+        obj.addProperty("id", id.toString()); // historically...
+        obj.addProperty("network_id", entity.getId());
         obj.addProperty("class", entity.getClass().getName());
         obj.addProperty("classShort", Mappings.class2short(entity.getClass()));
         obj.add("pos", Serializer.toJsonTree(entity.getPos()));
@@ -210,8 +232,8 @@ public class StatusHandler implements HttpHandler {
         obj.add("boundingCenter", Serializer.toJsonTree(entity.getBoundingBox().getCenter()));
         obj.add("visibilityBoundingCenter", Serializer.toJsonTree(entity.getVisibilityBoundingBox().getCenter()));
 
-        Long outlineColor = EntityCache.getExtra(entity.getUuid());
-        if ( outlineColor != null && outlineColor != 0 ) {
+        long outlineColor = EntityCache.getExtra(entity.getUuid(), EntityCache.OUTLINE_COLOR);
+        if ( outlineColor != 0 ) {
             obj.addProperty("outlineColor", outlineColor);
         }
 
@@ -244,17 +266,31 @@ public class StatusHandler implements HttpHandler {
             obj.addProperty("lastAttackedTime", le.getLastAttackedTime());
             obj.add("lastDamageSource", Serializer.toJsonTree(le.getRecentDamageSource()));
         }
-        if (entity instanceof HostileEntity) {
-            HostileEntity he = (HostileEntity) entity;
-            obj.addProperty("isAngryAtPlayer", he.isAngryAt(mc.player));
-        }
-        if (entity instanceof MobEntity) {
-            MobEntity mob = (MobEntity) entity;
-            obj.add("target", Serializer.toJsonTree(mob.getTarget()));
-            obj.addProperty("isAttacking", mob.isAttacking());
-        }
+//        always true
+//        if (entity instanceof HostileEntity) {
+//            HostileEntity he = (HostileEntity) entity;
+//            obj.addProperty("isAngryAtPlayer", he.isAngryAt(mc.player));
+//        }
+//
+//        // always empty
+//        if (entity instanceof MobEntity) {
+//            MobEntity mob = (MobEntity) entity;
+//            obj.add("target", Serializer.toJsonTree(mob.getTarget()));
+//            obj.addProperty("isAttacking", mob.isAttacking());
+//        }
         if ( entity.isRemoved() )
             obj.addProperty("removed", true);
+
+        Set<String> scoreboardTags = entity.getScoreboardTags();
+        if ( scoreboardTags != null && scoreboardTags.size() > 0 ) {
+            obj.add("scoreboardTags", Serializer.toJsonTree(scoreboardTags));
+        }
+
+        AbstractTeam team = entity.getScoreboardTeam();
+        if ( team != null ) {
+            obj.addProperty("scoreboardTeam", team.getName());
+        }
+
         OpenNbtCompound nbt = new OpenNbtCompound();
         entity.writeNbt(nbt);
         if ( nbt.getSize() > 0 )
@@ -283,19 +319,23 @@ public class StatusHandler implements HttpHandler {
     }
 
     public static JsonObject serializePlayerCompact() {
+        if (mc == null || mc.player == null) return null;
         JsonObject obj = serializeEntityCompact(mc.player);
+        obj.add("chunkPos", GSON.toJsonTree(mc.player.getChunkPos()));
         obj.add("defense", GSON.toJsonTree(statusBarTracker.getDefense()));
         obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
         obj.add("hotbar", Serializer.toJsonTree(mc.player.getInventory()));
         obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
         obj.add("skills", GSON.toJsonTree(XPInformation.getInstance().getSkillInfoMap()));
         obj.addProperty("abilityCharges", XPInformation.tickers);
+        obj.addProperty("isBreakingBlock", mc.interactionManager.isBreakingBlock());
         obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
         return obj;
     }
 
     public static JsonObject serializePlayer() {
         JsonObject obj = serializeEntity(mc.player);
+        obj.add("chunkPos", GSON.toJsonTree(mc.player.getChunkPos()));
         obj.add("defense", GSON.toJsonTree(statusBarTracker.getDefense()));
         obj.add("fishHook", serializeEntity(mc.player.fishHook));
         obj.add("health", GSON.toJsonTree(statusBarTracker.getHealth()));
@@ -307,11 +347,16 @@ public class StatusHandler implements HttpHandler {
         obj.addProperty("experienceLevel", mc.player.experienceLevel);
         obj.addProperty("experienceProgress", mc.player.experienceProgress);
         obj.addProperty("reachDistance", mc.interactionManager.getReachDistance());
+        obj.addProperty("isBreakingBlock", mc.interactionManager.isBreakingBlock());
         obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
         return obj;
     }
 
     private static JsonArray serializeInventory(Inventory src) {
+        return serializeInventory(src, 0);
+    }
+
+    private static JsonArray serializeInventory(Inventory src, int flags) {
         if ( src == null ) return null;
         JsonArray arr = new JsonArray();
         if ( src.isEmpty() ) return arr;
@@ -324,7 +369,7 @@ public class StatusHandler implements HttpHandler {
 
             OpenNbtCompound nbt = new OpenNbtCompound();
             stack.writeNbt(nbt);
-            JsonObject obj = nbt.asJson();
+            JsonObject obj = nbt.asJson(flags);
             obj.addProperty("maxCount", stack.getMaxCount());
             arr.add(obj);
         }
@@ -346,31 +391,58 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
-    private static JsonObject serializeScreen(net.minecraft.client.gui.screen.Screen src) {
-        if ( src == null ) return null;
+    private static JsonArray serializeScreenChildren(Screen screen) {
+        JsonArray arr = new JsonArray();
+        for ( Element e : screen.children() ){
+            JsonObject obj = new JsonObject();
+            obj.addProperty("class", e.getClass().getName());
+            if ( e instanceof ClickableWidget ){
+                ClickableWidget cw = (ClickableWidget)e;
+                obj.addProperty("x", cw.x);
+                obj.addProperty("y", cw.y);
+                obj.addProperty("width", cw.getWidth());
+                obj.addProperty("height", cw.getHeight());
+                obj.addProperty("message", text2string(cw.getMessage()));
+            }
+            arr.add(obj);
+        }
+        return arr;
+    }
+
+    private static JsonObject serializeHandler(ScreenHandler handler) {
         JsonObject obj = new JsonObject();
-        obj.addProperty("class", src.getClass().getName());
-        obj.addProperty("classShort", Mappings.class2short(src.getClass()));
-        obj.addProperty("title", src.getTitle().getString());
-        obj.addProperty("narratedTitle", src.getNarratedTitle().getString());
-        obj.addProperty("width", src.width);
-        obj.addProperty("height", src.height);
-        if ( src instanceof HandledScreen ) {
-            obj.addProperty("x", ((ContainerAccessor)src).getX());
-            obj.addProperty("y", ((ContainerAccessor)src).getY());
-            ScreenHandler handler = ((HandledScreen)src).getScreenHandler();
-            obj.addProperty("syncId", handler.syncId);
+        obj.addProperty("syncId", handler.syncId);
+        obj.addProperty("class", handler.getClass().getName());
+        obj.addProperty("revision", handler.getRevision());
+        return obj;
+    }
+
+    private static JsonObject serializeScreen(Screen screen) {
+        if ( screen == null ) return null;
+        JsonObject obj = new JsonObject();
+        obj.addProperty("class", screen.getClass().getName());
+        obj.addProperty("classShort", Mappings.class2short(screen.getClass()));
+        obj.addProperty("title", screen.getTitle().getString());
+        obj.addProperty("narratedTitle", screen.getNarratedTitle().getString());
+        obj.addProperty("width", screen.width);
+        obj.addProperty("height", screen.height);
+        if ( screen instanceof HandledScreen ) {
+            obj.addProperty("x", ((ContainerAccessor)screen).getX());
+            obj.addProperty("y", ((ContainerAccessor)screen).getY());
+            ScreenHandler handler = ((HandledScreen)screen).getScreenHandler();
+            obj.add("handler", serializeHandler(handler));
             JsonArray arr = new JsonArray();
             JsonObject inventories = new JsonObject();
             for ( Slot slot : handler.slots ) {
                 arr.add(serializeSlot(slot));
                 String inventoryId = defaultToString(slot.inventory);
                 if ( !inventories.has(inventoryId) && slot.inventory != mc.player.getInventory() )
-                    inventories.add(inventoryId, serializeInventory(slot.inventory));
+                    inventories.add(inventoryId, serializeInventory(slot.inventory, OpenNbtCompound.WITH_LORE));
             }
             obj.add("slots", arr);
             obj.add("inventories", inventories);
         }
+        obj.add("children", serializeScreenChildren(screen));
         return obj;
     }
 
@@ -469,7 +541,7 @@ public class StatusHandler implements HttpHandler {
     // from Skyblocker
     public static List<String> getSidebar() {
         try {
-            if (mc.player == null) return Collections.emptyList();
+            if (mc.player == null) return null;
             Scoreboard scoreboard = mc.player.getScoreboard();
             ScoreboardObjective objective = scoreboard.getObjectiveForSlot(1);
             List<String> lines = new ArrayList<>();
@@ -494,6 +566,7 @@ public class StatusHandler implements HttpHandler {
     }
 
     public static JsonObject serializeWorld(World world) {
+        if ( world == null ) return null;
         JsonObject obj = new JsonObject();
         obj.addProperty("time", world.getTime());
         obj.addProperty("timeOfDay", world.getTimeOfDay());
@@ -502,6 +575,18 @@ public class StatusHandler implements HttpHandler {
         return obj;
     }
 
+    public static String text2string(Text text) {
+        return (text == null) ? null : text.getString();
+    }
+
+    public static JsonObject serializeHUD() {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("title", text2string(((InGameHudAccessor)mc.inGameHud).getTitle()));
+        obj.addProperty("subtitle", text2string(((InGameHudAccessor)mc.inGameHud).getSubtitle()));
+        return obj;
+    }
+
+    // main
     public static JsonObject buildJson(JsonObject obj) {
         if ( obj == null ) {
             obj = new JsonObject();
@@ -522,6 +607,7 @@ public class StatusHandler implements HttpHandler {
         obj.add("playerList", GSON.toJsonTree(getPlayerList()));
         obj.addProperty("playerListFooter", getPlayerListFooter());
         obj.add("world", serializeWorld(mc.world));
+        obj.add("hud", serializeHUD());
         obj.addProperty("status", "full");
         return obj;
     }

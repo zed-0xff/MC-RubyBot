@@ -13,6 +13,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.text.Text;
 
 @Mixin(InGameHud.class)
 public abstract class MixinInGameHud
@@ -28,8 +29,13 @@ public abstract class MixinInGameHud
         }
     }
 
-    @Shadow int overlayRemaining;
-    public int getOverlayRemaining() {
-        return this.overlayRemaining;
+    @Shadow Text title;
+    public Text getTitle() {
+        return this.title;
+    }
+
+    @Shadow Text subtitle;
+    public Text getSubtitle() {
+        return this.subtitle;
     }
 }

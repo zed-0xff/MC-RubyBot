@@ -15,12 +15,14 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.OutlineVertexConsumerProvider;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.render.Frustum;
 
 @Mixin(EntityRenderDispatcher.class)
 public class MixinEntityRenderDispatcher {
     @Inject(
         method = "render(Lnet/minecraft/entity/Entity;DDDFFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
-        at = @At("HEAD")
+        at = @At("HEAD"),
+        cancellable = true
     )
         private void render(Entity entity,
                 double x,
@@ -33,8 +35,14 @@ public class MixinEntityRenderDispatcher {
                 int light,
                 CallbackInfo ci)
         {
-            Long outlineColor = EntityCache.getExtra(entity.getUuid());
-            if ( outlineColor != null && outlineColor != 0 ) {
+            long hide = EntityCache.getExtra(entity.getUuid(), EntityCache.HIDE_ENTITY);
+            if ( hide == 1 ) {
+                ci.cancel();
+                return;
+            }
+
+            long outlineColor = EntityCache.getExtra(entity.getUuid(), EntityCache.OUTLINE_COLOR);
+            if ( outlineColor != 0 ) {
                 if ( vertexConsumers instanceof OutlineVertexConsumerProvider ) {
                     ((OutlineVertexConsumerProvider)vertexConsumers).setColor(
                         (int)((outlineColor >> 24) & 0xff),
@@ -43,6 +51,20 @@ public class MixinEntityRenderDispatcher {
                         (int)(outlineColor & 0xff)
                         );
                 }
+            }
+        }
+
+    @Inject(
+    method = "shouldRender(Lnet/minecraft/entity/Entity;Lnet/minecraft/client/render/Frustum;DDD)Z",
+    at = @At("HEAD"),
+    cancellable = true
+    )
+        private void shouldRender(Entity entity, Frustum frustum, double x, double y, double z,
+                CallbackInfoReturnable<Boolean> cir) 
+        {
+            long hide = EntityCache.getExtra(entity.getUuid(), EntityCache.HIDE_ENTITY);
+            if ( hide == 1 ) {
+                cir.setReturnValue(false);
             }
         }
 }

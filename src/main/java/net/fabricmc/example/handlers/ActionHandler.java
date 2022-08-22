@@ -3,17 +3,23 @@ package net.fabricmc.example.handlers;
 import net.fabricmc.example.*;
 import net.fabricmc.example.mixin.*;
 
+import baritone.api.BaritoneAPI;
+import baritone.api.utils.Rotation;
+import baritone.api.utils.RotationUtils;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.regex.Pattern;
+import java.util.Optional;
 
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.block.AirBlock;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
 import net.minecraft.client.option.KeyBinding;
@@ -44,6 +50,14 @@ import net.minecraft.util.registry.RegistryEntry;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.inventory.Inventory;
+import net.minecraft.nbt.NbtInt;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.util.math.Direction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,8 +81,10 @@ import net.minecraft.entity.passive.CatEntity;
 
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.screen.GenericContainerScreenHandler;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -276,6 +292,8 @@ public class ActionHandler implements HttpHandler {
         public String resultKey = null;
 
         public int x,y,color,ttl;
+
+        public int delayNext = 0; // delay next action (ticks)
     }
 
     private <T extends LivingEntity> List<T> getLivingEntitiesByClassName(String type, Box box, boolean onlyAlive) throws ClassNotFoundException {
@@ -300,40 +318,137 @@ public class ActionHandler implements HttpHandler {
 
     private static Box boxFromAction( Action action ) {
         Box box = mc.player.getBoundingBox();
-        if ( action.expand != null )
-            box = box.expand(action.expand.getX(), action.expand.getY(), action.expand.getZ());
         if ( action.offset != null )
             box = box.offset(action.offset);
+        if ( action.expand != null )
+            box = box.expand(action.expand.getX(), action.expand.getY(), action.expand.getZ());
         return box;
     }
 
     int delayNextActionUntilTick = 0;
 
     // AntiAntiCheat :)
-    private void actionDelay() {
+    private void actionDelay(int delayNext) {
         while ( ExampleMod.tick < delayNextActionUntilTick ) {
             try { Thread.sleep(50); } catch (InterruptedException e) {}
         }
 
-        delayNextActionUntilTick = ExampleMod.tick + ThreadLocalRandom.current().nextInt(
-                CONFIG.minActionDelay,
-                CONFIG.minActionDelay + CONFIG.maxRandomActionDelay
-                );
+        if ( delayNext == 0 ) {
+            delayNext = ThreadLocalRandom.current().nextInt(
+                    CONFIG.minActionDelay,
+                    CONFIG.minActionDelay + CONFIG.maxRandomActionDelay
+                    );
+        }
+
+        delayNextActionUntilTick = ExampleMod.tick + delayNext;
     }
 
-    private int doAction(HttpExchange http) throws UnsupportedEncodingException, ClassNotFoundException {
+    private void actionDelay() {
+        actionDelay(0);
+    }
+
+    private ItemStack copyStack( Inventory inv, int slot_id) {
+        ItemStack stack = inv.getStack(slot_id);
+        NbtCompound nbt = stack.getNbt();
+        if ( nbt == null || nbt.getInt("origSlot") == 0 ){
+            if ( !stack.getItem().equals(Items.AIR) ) {
+                stack.setSubNbt("origSlot", NbtInt.of(slot_id));
+            }
+        }
+        return stack;
+    }
+
+    final static int SIDE_DOWN  =  1;
+    final static int SIDE_UP    =  2;
+    final static int SIDE_NORTH =  4;
+    final static int SIDE_SOUTH =  8;
+    final static int SIDE_WEST  = 16;
+    final static int SIDE_EAST  = 32;
+
+    static HashMap<Integer, Vec3d> BLOCK_SIDE_MULTIPLIERS = new HashMap<Integer, Vec3d>() {{
+        put(SIDE_DOWN,  new Vec3d(0.5, 0, 0.5));
+        put(SIDE_UP,    new Vec3d(0.5, 1, 0.5));
+        put(SIDE_NORTH, new Vec3d(0.5, 0.5, 0));
+        put(SIDE_SOUTH, new Vec3d(0.5, 0.5, 1));
+        put(SIDE_WEST,  new Vec3d(0, 0.5, 0.5));
+        put(SIDE_EAST,  new Vec3d(1, 0.5, 0.5));
+    }};
+
+    public boolean lookAtBlock( BlockPos pos, int delay, double blockReachDistance, int sides ){
+        if ( blockReachDistance == 0 ) {
+            blockReachDistance = mc.interactionManager.getReachDistance();
+        }
+        Optional<Rotation> r = Optional.empty();
+
+        if ( sides == 0 ) {
+            // any side
+            r = RotationUtils.reachable( mc.player, pos, blockReachDistance );
+        } else {
+            // adapted from baritone.api.utils.RotationUtils
+            boolean wouldSneak = false;
+            BlockState state = mc.world.getBlockState(pos);
+            VoxelShape shape = state.getCollisionShape(mc.world, pos); // not sure if getCollisionShape is the correct method here
+            if (shape.isEmpty()) {
+                shape = VoxelShapes.fullCube();
+            }
+            for(Iterator<Map.Entry<Integer, Vec3d>> it = BLOCK_SIDE_MULTIPLIERS.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<Integer, Vec3d> entry = it.next();
+                if ( (sides & entry.getKey()) == 0 )
+                    continue;
+
+                Vec3d sideOffset = entry.getValue();
+                double xDiff = shape.getMin(Direction.Axis.X) * sideOffset.x + shape.getMax(Direction.Axis.X) * (1 - sideOffset.x);
+                double yDiff = shape.getMin(Direction.Axis.Y) * sideOffset.y + shape.getMax(Direction.Axis.Y) * (1 - sideOffset.y);
+                double zDiff = shape.getMin(Direction.Axis.Z) * sideOffset.z + shape.getMax(Direction.Axis.Z) * (1 - sideOffset.z);
+                r = RotationUtils.reachableOffset(
+                        mc.player,
+                        pos,
+                        new Vec3d(pos.getX(), pos.getY(), pos.getZ()).add(xDiff, yDiff, zDiff),
+                        blockReachDistance,
+                        wouldSneak);
+
+                if ( r.isPresent() ) {
+                    // found!
+                    break;
+                }
+            }
+        }
+
+        if ( r.isPresent() ) {
+            actionDelay();
+            smoothSetPitchYaw(r.get().getPitch(), r.get().getYaw(), delay);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private int doAction(HttpExchange http) throws UnsupportedEncodingException, ClassNotFoundException, IOException {
         StopWatch stopwatch = StopWatch.createStarted();
         if ( !http.getRequestMethod().equals("POST") ) {
             body = "I want POST";
             return 400;
         }
-        List<Action> script = GSON.fromJson(
-                new InputStreamReader(http.getRequestBody(), "UTF-8"),
-                new TypeToken<List<Action>>() {}.getType());
+
+        String requestBody = new String(http.getRequestBody().readAllBytes(), "UTF-8");
+        List<Action> script;
+
+        try {
+            script = GSON.fromJson(requestBody, new TypeToken<List<Action>>() {}.getType());
+        } catch (com.google.gson.JsonSyntaxException e){
+            body = e.toString() + "\n\n" + requestBody;
+            return 500;
+        }
 
         JsonObject jsonResult = new JsonObject();
 
         for( Action action : script ) {
+            if (action.command.equals("blocksRelative"))
+                action.command = "blocks";
+
+            if ( action.resultKey == null )
+                action.resultKey = action.command;;
+
             if ( action.command.equals("status") ) {
                 // if intArg != 0 then it's a tick number and we should wait for a next one
                 // (or just different)
@@ -345,26 +460,38 @@ public class ActionHandler implements HttpHandler {
                 StatusHandler.buildJson(jsonResult);
             } else if ( action.command.equals("lookAt") ) {
                 lookAt(action.target, action.delay);
+
+            } else if ( action.command.equals("lookAtBlock") ) {
+                // floatArg - custom reach distance, default if 0
+                // intArg   - acceptable sides of block
+                double reachDistance = action.floatArg;
+                int sides = action.intArg;
+                    
+                boolean r = lookAtBlock(new BlockPos(action.target), action.delay, reachDistance, sides);
+                jsonResult.addProperty( action.command, r );
+
             } else if (action.command.equals("travel")) {
+                // travel vector is relative to player!
+                // so f.ex. positive Z is always 'forward'
                 actionDelay();
                 mc.player.travel(action.target);
+
+//            } else if (action.command.equals("blocks")) {
+//                BlockPos b1 = new BlockPos(action.box.minX, action.box.minY, action.box.minZ);
+//                BlockPos b2 = new BlockPos(action.box.maxX, action.box.maxY, action.box.maxZ);
+//
+//                if ( !jsonResult.has(action.resultKey) ) jsonResult.add(action.resultKey, new JsonArray());
+//                JsonArray arr = jsonResult.getAsJsonArray(action.resultKey);
+//
+//                for( BlockPos pos : BlockPos.iterate(b1, b2)) {
+//                    BlockState state = mc.world.getBlockState(pos);
+//                    if ( state.getBlock() instanceof AirBlock )
+//                        continue;
+//                    JsonObject x = StatusHandler.serializeBlockState(state);
+//                    x.add("pos", Serializer.toJsonTree((BlockPos)pos));
+//                    arr.add(x);
+//                }
             } else if (action.command.equals("blocks")) {
-                BlockPos b1 = new BlockPos(action.box.minX, action.box.minY, action.box.minZ);
-                BlockPos b2 = new BlockPos(action.box.maxX, action.box.maxY, action.box.maxZ);
-
-                if ( action.resultKey == null ) action.resultKey = "blocks";
-                if ( !jsonResult.has(action.resultKey) ) jsonResult.add(action.resultKey, new JsonArray());
-                JsonArray arr = jsonResult.getAsJsonArray(action.resultKey);
-
-                for( BlockPos pos : BlockPos.iterate(b1, b2)) {
-                    BlockState state = mc.world.getBlockState(pos);
-                    if ( state.getBlock() instanceof AirBlock )
-                        continue;
-                    JsonObject x = StatusHandler.serializeBlockState(state);
-                    x.add("pos", Serializer.toJsonTree((BlockPos)pos));
-                    arr.add(x);
-                }
-            } else if (action.command.equals("blocksRelative")) {
                 // relative to player
                 // arguments:
                 //    Vec3d offset - box offset
@@ -374,7 +501,6 @@ public class ActionHandler implements HttpHandler {
                 Box box = boxFromAction(action);
                 jsonResult.add("box", Serializer.toJsonTree(box));
 
-                if ( action.resultKey == null ) action.resultKey = "blocks";
                 if ( !jsonResult.has(action.resultKey) ) jsonResult.add(action.resultKey, new JsonArray());
                 JsonArray arr = jsonResult.getAsJsonArray(action.resultKey);
 
@@ -402,11 +528,18 @@ public class ActionHandler implements HttpHandler {
 //                body = ai(action.target) ? "true" : "false";
 //                return 200;
             } else if (action.command.equals("say")) {
-                mc.player.sendMessage(Text.literal(action.stringArg));
+                if ( action.stringArg != null ){
+                    mc.player.sendMessage(Text.literal(action.stringArg));
+                }
+
             } else if (action.command.equals("chat")) {
-                mc.player.sendChatMessage(action.stringArg, null);
+                if ( action.stringArg != null ){
+                    mc.player.sendChatMessage(action.stringArg, null);
+                }
+
             } else if (action.command.equals("setAutoJump")) {
                 mc.options.getAutoJump().setValue(action.boolArg);
+
             } else if (action.command.equals("playSound")) {
                 SoundEvent event = Registry.SOUND_EVENT.get(new Identifier(action.stringArg));
                 if ( event == null ) {
@@ -444,7 +577,7 @@ public class ActionHandler implements HttpHandler {
 //                obj.add("player", StatusHandler.serializePlayerCompact());
 //                body = GSON.toJson(obj);
 //                return 200;
-            } else if (action.command.equals("getEntities")) {
+            } else if (action.command.equals("entities")) {
                 // relative to player
                 // arguments:
                 //    stringArg    - fully qualified entity name, like "net.minecraft.entity.LivingEntity"
@@ -462,7 +595,6 @@ public class ActionHandler implements HttpHandler {
 
                 entities = getEntitiesByClassName(action.stringArg, box, !action.boolArg);
 
-                if ( action.resultKey == null ) action.resultKey = "entities";
                 if ( !jsonResult.has(action.resultKey) ) jsonResult.add(action.resultKey, new JsonArray());
                 JsonArray jentities = jsonResult.getAsJsonArray(action.resultKey);
 
@@ -491,6 +623,13 @@ public class ActionHandler implements HttpHandler {
                 Slot slot = slotId == -1 ? null : screen.getScreenHandler().getSlot(slotId);
                 ((ContainerAccessor)screen).invokeOnMouseClick(slot, slotId, button, actionType);
 
+            } else if (action.command.equals("clickScreen")) {
+                if ( mc.currentScreen == null )
+                    return 400;
+                HudOverlay.clickX = action.x;
+                HudOverlay.clickY = action.y;
+                HudOverlay.shouldClick = true;
+
             } else if (action.command.equals("clickSlot")) {
                 // click on player inventory slot (can be done even if inventory screen is not open?)
                 //
@@ -514,7 +653,7 @@ public class ActionHandler implements HttpHandler {
             } else if (action.command.equals("getEntityByUUID")) {
                 UUID uuid = UUID.fromString(action.stringArg);
                 Entity entity = EntityCache.get(uuid);
-                if ( action.resultKey == null ) action.resultKey = "entity";
+                if ( action.resultKey.equals("getEntityByUUID")) action.resultKey = "entity";
                 jsonResult.add(action.resultKey, StatusHandler.serializeEntity(entity));
 
             } else if (action.command.equals("log")) {
@@ -552,6 +691,54 @@ public class ActionHandler implements HttpHandler {
                         }
                     }
                 }
+//            } else if (action.command.equals("Screen.setSlotXY")) {
+//                if ( mc.currentScreen != null && mc.currentScreen instanceof HandledScreen ) {
+//                    HandledScreen screen = (HandledScreen)mc.currentScreen;
+//                    ScreenHandler handler = screen.getScreenHandler();
+////                    Slot slot = handler.slots.get(action.intArg);
+////                    if ( slot != null ) {
+////                        handler.slots.set(action.intArg2, new Slot(slot.inventory, slot.getIndex(), action.x, action.y));
+//                        handler.getStacks().set(action.intArg2, handler.getStacks().get(action.intArg));
+////                    }
+//                }
+
+            } else if (action.command.equals("Screen.copySlot")) {
+                if ( mc.currentScreen != null && mc.currentScreen instanceof HandledScreen ) {
+                    HandledScreen screen = (HandledScreen)mc.currentScreen;
+                    ScreenHandler handler = screen.getScreenHandler();
+                    if ( handler instanceof GenericContainerScreenHandler ) {
+                        GenericContainerScreenHandler gh = (GenericContainerScreenHandler)handler;
+                        Inventory inv = gh.getInventory();
+                        inv.setStack(action.intArg2, copyStack( inv, action.intArg));
+                    }
+                }
+
+            } else if (action.command.equals("Screen.swapSlots")) {
+                if ( mc.currentScreen != null && mc.currentScreen instanceof HandledScreen ) {
+                    HandledScreen screen = (HandledScreen)mc.currentScreen;
+                    ScreenHandler handler = screen.getScreenHandler();
+                    if ( handler instanceof GenericContainerScreenHandler ) {
+                        GenericContainerScreenHandler gh = (GenericContainerScreenHandler)handler;
+                        Inventory inv = gh.getInventory();
+
+                        ItemStack st1 = copyStack(gh.getInventory(), action.intArg);
+                        ItemStack st2 = copyStack(gh.getInventory(), action.intArg2);
+
+                        gh.getInventory().setStack(action.intArg, st2);
+                        gh.getInventory().setStack(action.intArg2, st1);
+                    }
+                }
+
+//            } else if (action.command.equals("Screen.setSlotIndex")) {
+//                if ( mc.currentScreen != null && mc.currentScreen instanceof HandledScreen ) {
+//                    HandledScreen screen = (HandledScreen)mc.currentScreen;
+//                    ScreenHandler handler = screen.getScreenHandler();
+//                    Slot slot = handler.slots.get(action.intArg);
+//                    if ( slot != null ) {
+//                        handler.slots.set(action.intArg, new Slot(slot.inventory, action.intArg2, slot.x, slot.y));
+//                    }
+//                }
+
             } else if (action.command.equals("messages")) {
                 // stringArg   filter (regexp)
                 jsonResult.add("messages", findMessages(action.stringArg));
@@ -564,10 +751,6 @@ public class ActionHandler implements HttpHandler {
                     r = false;
                 }
                 jsonResult.addProperty("attack", r);
-            } else if (action.command.equals("breakBlock")) {
-                // xz
-                actionDelay();
-                ((MinecraftClientAccessor)mc).invokeHandleBlockBreaking(action.boolArg);
             } else if (action.command.equals("lockCursor")) {
                 if ( action.boolArg )
                     ExampleMod.shouldLockCursor = true;
@@ -577,7 +760,7 @@ public class ActionHandler implements HttpHandler {
                 // stringArg  entity uuid
                 // longArg    RGBA color or 0 to disable
                 UUID uuid = UUID.fromString(action.stringArg);
-                EntityCache.setExtra(uuid, action.longArg);
+                EntityCache.setExtra(uuid, EntityCache.OUTLINE_COLOR, action.longArg);
             } else if (action.command.equals("suppressButtonRelease")) {
                 if ( !suppressButtonRelease && !action.boolArg ){
                     suppressButtonRelease = action.boolArg;
@@ -587,11 +770,20 @@ public class ActionHandler implements HttpHandler {
                 } else {
                     suppressButtonRelease = action.boolArg;
                 }
-            } else if (action.command.equals("getTeamNames")) {
+            } else if (action.command.equals("getTeams")) {
                 if ( mc.player != null ) {
-                    jsonResult.add("teamNames", GSON.toJsonTree(
-                                mc.player.getScoreboard().getTeamNames()
-                                ));
+                    JsonArray teams = new JsonArray();
+                    for( Team team : mc.player.getScoreboard().getTeams() ){
+                        JsonObject obj = new JsonObject();
+                        obj.addProperty("name", team.getName());
+                        obj.addProperty("displayName", team.getDisplayName().getString());
+                        obj.addProperty("prefix", team.getPrefix().getString());
+                        obj.addProperty("suffix", team.getSuffix().getString());
+                        obj.addProperty("nameTagVisibilityRule", String.valueOf(team.getNameTagVisibilityRule()));
+                        obj.addProperty("nPlayers", team.getPlayerList().size());
+                        teams.add(obj);
+                    }
+                    jsonResult.add("teams", teams);
                 }
             } else if (action.command.equals("setTeamPrefix")) {
                 if ( mc.player != null && action.stringArg != null && action.stringArg2 != null ) {
@@ -632,17 +824,40 @@ public class ActionHandler implements HttpHandler {
             } else if (action.command.equals("HUD.updateTextTTL")) {
                 HudOverlay.updateTextTTL(action.stringArg2, action.x, action.y, action.ttl);
 
-//            } else if (action.command.equals("HUD.addSlotText")) {
-//                int slot_id = action.intArg;
-//                HudOverlay.addSlotText(action.stringArg, slot_id, action.x, action.y, action.ttl);
-
             } else if (action.command.equals("interactItem")) {
                 Hand hand = action.intArg == 0 ? Hand.MAIN_HAND : Hand.OFF_HAND;
-                actionDelay();
+                actionDelay( action.delayNext );
                 jsonResult.addProperty(
                         action.command,
                         mc.interactionManager.interactItem(mc.player, hand).toString()
                         );
+
+            } else if (action.command.equals("interactBlock")) {
+                HitResult target = mc.crosshairTarget;
+                if (target instanceof BlockHitResult) {
+                    Hand hand = action.intArg == 0 ? Hand.MAIN_HAND : Hand.OFF_HAND;
+                    actionDelay( action.delayNext );
+                    jsonResult.addProperty(
+                            action.command,
+                            mc.interactionManager.interactBlock(mc.player, hand, (BlockHitResult)target).toString()
+                            );
+                    mc.player.swingHand(Hand.MAIN_HAND);
+                }
+
+            } else if (action.command.equals("updateBlockBreakingProgress")) {
+                HitResult target = mc.crosshairTarget;
+                if (target instanceof BlockHitResult) {
+                    actionDelay( action.delayNext );
+                    jsonResult.addProperty(
+                            action.command,
+                            mc.interactionManager.updateBlockBreakingProgress(
+                                ((BlockHitResult)target).getBlockPos(),
+                                ((BlockHitResult)target).getSide()
+                                )
+                            );
+                    mc.player.swingHand(Hand.MAIN_HAND);
+                }
+
             } else if (action.command.equals("setOverlayMessage")) {
                 // intArg - prevent overlay update for N ticks
                 if ( action.intArg > 0 ) {
@@ -653,8 +868,6 @@ public class ActionHandler implements HttpHandler {
                 mc.inGameHud.setOverlayMessage( overlayMessage, tinted );
 
             } else if (action.command.equals("raytrace")) {
-                if ( action.resultKey == null ) action.resultKey = action.command;;
-
                 HitResult target = mc.crosshairTarget;
                 if ( target == null || target.getType() == HitResult.Type.MISS ) {
                     boolean useLiquids = action.boolArg;
@@ -663,9 +876,42 @@ public class ActionHandler implements HttpHandler {
                 }
                 jsonResult.add( action.resultKey, StatusHandler.serializeHitResult(target) );
 
+            } else if (action.command.equals("hideEntity")) {
+                UUID uuid = UUID.fromString(action.stringArg);
+                EntityCache.setExtra(uuid, EntityCache.HIDE_ENTITY, 1);
+
+            } else if (action.command.equals("hideBlock")) {
+                if ( action.target == null ) return 400;
+                BlockPos pos = new BlockPos(action.target);
+                if ( mc.world.getBlockState(pos) != null ) {
+                    mc.world.setBlockState(pos, Blocks.AIR.getDefaultState(), 0, 0);
+                }
+//                mc.interactionManager.breakBlock(new BlockPos(action.target));
+                // xz
+//                actionDelay();
+//                ((MinecraftClientAccessor)mc).invokeHandleBlockBreaking(action.boolArg);
+
+            } else if (action.command.equals("setEntityExtra")) {
+                UUID uuid = UUID.fromString(action.stringArg);
+                EntityCache.setExtra(uuid, action.intArg, action.longArg);
+
+            } else if (action.command.equals("clearExtras")) {
+                EntityCache.clearExtras();
+
+            } else if (action.command.equals("getSounds")) {
+                int prev_index = action.intArg;
+                jsonResult.add("sounds", SoundLog.serialize(prev_index));
+
+            } else if (action.command.equals("hideOtherPlayers")) {
+                EntityCache.setHideOtherPlayers(action.boolArg);
+
             } else {
                 LOGGER.error("[?] invalid action: " + action.command);
             }
+        }
+
+        if( !jsonResult.has("tick") ){
+            jsonResult.addProperty("tick", ExampleMod.tick);
         }
         
         if( !jsonResult.has("status") ){
@@ -722,7 +968,7 @@ public class ActionHandler implements HttpHandler {
         }
 	}
 
-    public static boolean hideMessage( boolean isOverlay, String msg ){
+    public static boolean shouldHideMessage( boolean isOverlay, String msg ){
         if ( isOverlay ) {
             if ( suspendOverlayUpdateUntilTick > ExampleMod.tick ) {
                 return true;
@@ -733,6 +979,10 @@ public class ActionHandler implements HttpHandler {
                     return true;
             }
         }
+        return false;
+    }
+
+    public static boolean shouldMuteSound( SoundInstance sound ) {
         return false;
     }
 }

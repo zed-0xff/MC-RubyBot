@@ -92,12 +92,12 @@ public class OpenNbtCompound extends NbtCompound {
 				case COMPOUND_TYPE:
                     OpenNbtCompound tmp = new OpenNbtCompound();
                     tmp.copyFrom((NbtCompound)value);
-                    if ( key.equals("display") && getInt("overrideMeta") == 1 ){
+                    if ( key.equals("display") && (getInt("overrideMeta") == 1 || getInt("HideFlags") == 255 )){
                         // Lore will contain some dynamic info, e.g. number of items in sacks
-                        obj.add(key, tmp.asJson(WITH_LORE));
+                        obj.add(key, tmp.asJson(flags | WITH_LORE));
                     } else {
                         // waste of bytes
-                        obj.add(key, tmp.asJson());
+                        obj.add(key, tmp.asJson(flags));
                     }
 					break;
 				case DOUBLE_TYPE:

@@ -16,6 +16,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ public class ExampleMod implements ModInitializer {
 
         ClientLifecycleEvents.CLIENT_STARTED.register(this::clientReady);
         ClientTickEvents.END_CLIENT_TICK.register(this::clientTickEvent);
+//        ClientTickEvents.END_WORLD_TICK.register(this::worldTickEvent);
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             commandDispatcher = dispatcher;
             commandDispatcher.register(ClientCommandManager.literal("legit").executes(context -> {
@@ -93,7 +95,12 @@ public class ExampleMod implements ModInitializer {
                 mc.currentScreen.close();
             shouldCloseScreen = false;
         }
+
     }
+
+//    private void worldTickEvent(ClientWorld world) {
+//        LOGGER.info("[d] worldTickEvent");
+//    }
 
     private void clientTickEvent(MinecraftClient mc) {
         tick++;

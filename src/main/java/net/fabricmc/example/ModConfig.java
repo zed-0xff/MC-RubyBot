@@ -14,17 +14,21 @@ import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 public class ModConfig implements ConfigData {
 
     public boolean debug            = false;
+    public boolean experimental     = false;
+
     public int minActionDelay       = 3;
     public int maxRandomActionDelay = 4;
 
-    public static class SoundManagerConfig {
-        public boolean enable = false;
-        public double maxSqDistance = 4.0;
-    }
+    public int soundLogSize         = 100;
 
-    @ConfigEntry.Category("SoundManager")
-    @ConfigEntry.Gui.TransitiveObject
-    public SoundManagerConfig soundManager = new SoundManagerConfig();
+//    public static class SoundManagerConfig {
+//        public boolean enable = false;
+//        public double maxSqDistance = 4.0;
+//    }
+//
+//    @ConfigEntry.Category("SoundManager")
+//    @ConfigEntry.Gui.TransitiveObject
+//    public SoundManagerConfig soundManager = new SoundManagerConfig();
 
     public static class EntityRenderDispatcherConfig {
         public boolean enable = false;

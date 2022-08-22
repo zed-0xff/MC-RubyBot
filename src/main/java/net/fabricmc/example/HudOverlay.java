@@ -6,10 +6,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawableHelper;
-
-import org.lwjgl.opengl.GL11;
+import net.minecraft.client.gui.screen.Screen;
 
 public class HudOverlay {
+
+    public static boolean shouldClick = false;
+    public static int clickX, clickY;
     
     private static class HudText {
         String[] lines;
@@ -111,6 +113,14 @@ public class HudOverlay {
             }
         } finally {
             lock.unlock();
+        }
+
+        if ( dh instanceof Screen ) {
+            // clicks should be in render thread
+            if (shouldClick) {
+                int button = 0; // left
+                ((Screen)dh).mouseClicked(clickX, clickY, button);
+            }
         }
     }
 }

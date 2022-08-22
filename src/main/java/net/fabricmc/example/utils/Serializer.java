@@ -8,11 +8,8 @@ import com.google.gson.reflect.TypeToken;
 
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.BlockPos.Mutable;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Vec3i;
+import net.minecraft.util.math.*;
 import net.minecraft.client.gui.screen.Screen;
 
 import net.fabricmc.loader.api.metadata.ModMetadata;
@@ -140,6 +137,17 @@ public class Serializer {
                     obj.addProperty("x", src.getX());
                     obj.addProperty("y", src.getY());
                     obj.addProperty("z", src.getZ());
+                    return obj;
+                }
+            })
+        .registerTypeAdapter(
+            ChunkPos.class, 
+            new JsonSerializer<ChunkPos>() {
+                @Override
+                public JsonElement serialize(ChunkPos src, Type typeOfSrc, JsonSerializationContext context) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("x", src.x);
+                    obj.addProperty("z", src.z);
                     return obj;
                 }
             })

@@ -1,8 +1,10 @@
 // originally from tweakeroo
 package net.fabricmc.example.utils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.ConcurrentModificationException;
 import javax.annotation.Nonnull;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.BlockHitResult;
@@ -23,6 +25,15 @@ public class RayTraceUtils
         return getRayTraceFromEntity(worldIn, entityIn, useLiquids, reach);
     }
 
+    // this method is for workarounding ConcurrentModificationException
+    private static List<Entity> getOtherEntities(World worldIn, Entity entityIn, net.minecraft.util.math.Box bb) {
+        for(int i=0; i<10; i++) {
+            try { return worldIn.getOtherEntities(entityIn, bb); } catch (ConcurrentModificationException e) {}
+            try { Thread.sleep(10); } catch (InterruptedException e) {}
+        }
+        return new ArrayList<Entity>();
+    }
+
     @Nonnull
     public static HitResult getRayTraceFromEntity(World worldIn, Entity entityIn, boolean useLiquids, double range)
     {
@@ -34,13 +45,12 @@ public class RayTraceUtils
         RaycastContext context = new RaycastContext(eyesVec, lookVec, RaycastContext.ShapeType.COLLIDER, fluidMode, entityIn);
         HitResult result = worldIn.raycast(context);
 
-        if (result == null)
-        {
+        if (result == null) {
             result = BlockHitResult.createMissed(Vec3d.ZERO, Direction.UP, BlockPos.ORIGIN);
         }
 
         net.minecraft.util.math.Box bb = entityIn.getBoundingBox().expand(rangedLookRot.x, rangedLookRot.y, rangedLookRot.z).expand(1d, 1d, 1d);
-        List<Entity> list = worldIn.getOtherEntities(entityIn, bb);
+        List<Entity> list = getOtherEntities(worldIn, entityIn, bb);
 
         double closest = result.getType() == HitResult.Type.BLOCK ? eyesVec.distanceTo(result.getPos()) : Double.MAX_VALUE;
         Optional<Vec3d> entityTrace = Optional.empty();

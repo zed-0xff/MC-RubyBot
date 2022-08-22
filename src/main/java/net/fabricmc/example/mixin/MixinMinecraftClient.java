@@ -35,8 +35,8 @@ public abstract class MixinMinecraftClient
 
     @Inject(method = "hasOutline", at = @At("HEAD"), cancellable = true)
     private void outlineEntities(Entity entity, CallbackInfoReturnable<Boolean> ci) {
-        Long color = EntityCache.getExtra(entity.getUuid());
-        if ( color != null && color != 0 ) {
+        long color = EntityCache.getExtra(entity.getUuid(), EntityCache.OUTLINE_COLOR);
+        if ( color != 0 ) {
             ci.setReturnValue(true);
         }
     }

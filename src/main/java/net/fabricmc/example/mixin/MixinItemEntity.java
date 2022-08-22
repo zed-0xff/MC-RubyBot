@@ -24,7 +24,7 @@ public class MixinItemEntity {
         at = @At("HEAD")
     )
         private void onPlayerCollision(PlayerEntity player, CallbackInfo ci) {
-            if ( ExampleMod.LOGGER == null )
+            if ( ExampleMod.LOGGER == null || !ExampleMod.CONFIG.debug )
                 return;
 
             MinecraftClient mc = MinecraftClient.getInstance();

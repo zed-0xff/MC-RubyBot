@@ -549,9 +549,7 @@ public class ActionHandler implements HttpHandler {
                     LOGGER.info("[?] no sound with id '" + action.stringArg + "', playing '" + event.getId() + "' instead");
                 }
                 mc.getSoundManager().play(PositionedSoundInstance.master(event, 1.0F, action.floatArg));
-            } else if (action.command.equals("swapSlotWithHotbar")) {
-                actionDelay();
-                mc.player.getInventory().swapSlotWithHotbar(action.intArg);
+
             } else if (action.command.equals("selectSlot")) {
                 if ( mc.player.getInventory().selectedSlot != action.intArg ){
                     actionDelay();
@@ -631,7 +629,7 @@ public class ActionHandler implements HttpHandler {
                 HudOverlay.shouldClick = true;
 
             } else if (action.command.equals("clickSlot")) {
-                // click on player inventory slot (can be done even if inventory screen is not open?)
+                // click on player inventory slot (can be done even if inventory screen is not open!)
                 //
                 // intArg    slot_id
                 // intArg2   button
@@ -642,13 +640,6 @@ public class ActionHandler implements HttpHandler {
                 if (slotId >= mc.player.getInventory().size())
                     return 400;
                 mc.interactionManager.clickSlot(0, slotId, button, actionType, mc.player);
-
-            } else if (action.command.equals("pickFromInventory")) {
-                int slotId = action.intArg;
-                if (slotId >= mc.player.getInventory().size())
-                    return 400;
-                actionDelay();
-                mc.interactionManager.pickFromInventory(slotId);
 
             } else if (action.command.equals("getEntityByUUID")) {
                 UUID uuid = UUID.fromString(action.stringArg);

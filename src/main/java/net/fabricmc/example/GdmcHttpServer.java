@@ -9,6 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.client.MinecraftClient;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executor;
+
 public class GdmcHttpServer {
     private static HttpServer httpServer = null;
     private static MinecraftClient mc;
@@ -17,12 +20,18 @@ public class GdmcHttpServer {
     private static final String HOST = "localhost";
     private static final int    PORT = 9999;
 
+    static class QueuedExecutor implements Executor {
+        public void execute(Runnable r) {
+            ExampleMod.enqueue(r);
+        }
+    }
+
     public static void startServer(MinecraftClient mc) throws IOException {
         GdmcHttpServer.mc = mc;
 
         if ( httpServer == null ) {
             httpServer = HttpServer.create(new InetSocketAddress(HOST, PORT), 0);
-            httpServer.setExecutor(null);
+//            httpServer.setExecutor(new QueuedExecutor());
             createContexts();
             LOGGER.info("[.] HTTP server starting on http://" + HOST + ":" + PORT);
             httpServer.start();

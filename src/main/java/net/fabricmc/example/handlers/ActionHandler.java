@@ -334,10 +334,10 @@ public class ActionHandler implements HttpHandler {
         }
 
         if ( delayNext == 0 ) {
-            delayNext = ThreadLocalRandom.current().nextInt(
-                    CONFIG.minActionDelay,
-                    CONFIG.minActionDelay + CONFIG.maxRandomActionDelay
-                    );
+            delayNext = CONFIG.minActionDelay;
+            if ( CONFIG.maxRandomActionDelay > 0 ) {
+                delayNext += ThreadLocalRandom.current().nextInt( 0, CONFIG.maxRandomActionDelay );
+            }
         }
 
         delayNextActionUntilTick = ExampleMod.tick + delayNext;
@@ -514,13 +514,16 @@ public class ActionHandler implements HttpHandler {
                         arr.add(x);
                     }
                 });
+
             } else if (action.command.equals("mine")) {
                 actionDelay();
                 mine(action.delay);
+
             } else if (action.command.equals("logs")) {
                 body = log;
                 log = new String();
                 return 200;
+
             } else if (action.command.equals("key")) {
                 actionDelay();
                 pressKey(action.stringArg, action.delay);
@@ -639,6 +642,7 @@ public class ActionHandler implements HttpHandler {
                 SlotActionType actionType = SlotActionType.valueOf(action.stringArg);
                 if (slotId >= mc.player.getInventory().size())
                     return 400;
+                actionDelay();
                 mc.interactionManager.clickSlot(0, slotId, button, actionType, mc.player);
 
             } else if (action.command.equals("getEntityByUUID")) {
@@ -670,7 +674,11 @@ public class ActionHandler implements HttpHandler {
                 mc.player.dropSelectedItem(entireStack);
 
             } else if (action.command.equals("closeHandledScreen")) {
-                mc.player.closeHandledScreen();
+                if ( ExampleMod.isRenderThread(Thread.currentThread().getId()) ) {
+                    mc.player.closeHandledScreen();
+                } else {
+                    ExampleMod.enqueue( () -> { mc.player.closeHandledScreen(); }); 
+                }
 
             } else if (action.command.equals("closeScreen")) {
                 // boolArg - wait for close
@@ -835,6 +843,16 @@ public class ActionHandler implements HttpHandler {
                     mc.player.swingHand(Hand.MAIN_HAND);
                 }
 
+            } else if (action.command.equals("startBreakingBlock")) {
+                HitResult target = mc.crosshairTarget;
+                if (target instanceof BlockHitResult) {
+                    actionDelay( action.delayNext );
+                    jsonResult.addProperty( action.command, BlockBreakHelper.startBreakingBlock((BlockHitResult)target, mc) );
+                }
+
+            } else if (action.command.equals("stopBreakingBlock")) {
+                BlockBreakHelper.stopBreakingBlock(mc);
+
             } else if (action.command.equals("updateBlockBreakingProgress")) {
                 HitResult target = mc.crosshairTarget;
                 if (target instanceof BlockHitResult) {
@@ -893,8 +911,14 @@ public class ActionHandler implements HttpHandler {
                 int prev_index = action.intArg;
                 jsonResult.add("sounds", SoundLog.serialize(prev_index));
 
-            } else if (action.command.equals("hideOtherPlayers")) {
-                EntityCache.setHideOtherPlayers(action.boolArg);
+            } else if (action.command.equals("showInventory")) {
+                if ( ExampleMod.isRenderThread(Thread.currentThread().getId()) ) {
+                    mc.setScreen(new net.minecraft.client.gui.screen.ingame.InventoryScreen(mc.player));
+                } else {
+                    ExampleMod.enqueue( () -> {
+                        mc.setScreen(new net.minecraft.client.gui.screen.ingame.InventoryScreen(mc.player));
+                    }); 
+                }
 
             } else {
                 LOGGER.error("[?] invalid action: " + action.command);

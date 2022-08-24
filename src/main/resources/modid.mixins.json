@@ -6,12 +6,14 @@
   "mixins": [
   ],
   "client": [
+    "ClientPlayerInteractionManagerAccessor",
     "ContainerAccessor",
     "EntityRenderDispatcherAccessor",
     "InGameHudAccessor",
     "LivingEntityAccessor",
     "MessagesAccessor",
     "MinecraftClientAccessor",
+    "MixinAbstractBlockState",
     "MixinClientConnection",
     "MixinClientPlayNetworkHandler",
     "MixinClientPlayerEntity",

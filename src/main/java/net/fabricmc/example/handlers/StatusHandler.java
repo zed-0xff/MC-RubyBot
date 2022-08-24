@@ -159,6 +159,8 @@ public class StatusHandler implements HttpHandler {
         }
         if ( CONFIG.experimental ) {
             obj.add( "tags", Serializer.toJsonTree( state.streamTags().toList() ));
+            obj.addProperty( "isAir", state.isAir());
+            //obj.addProperty( "isSolidBlock", state.isSolidBlock());
         }
         return obj;
     }
@@ -212,6 +214,7 @@ public class StatusHandler implements HttpHandler {
         obj.add("eyePos", Serializer.toJsonTree(entity.getEyePos()));
         obj.addProperty("uuid", entity.getUuidAsString());
         obj.addProperty("canHit", entity.canHit());
+        obj.addProperty("horizontalFacing", entity.getHorizontalFacing().getName());
 
         String name = null;
         if ( entity.getName() != null ) {

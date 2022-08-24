@@ -20,10 +20,10 @@ import net.minecraft.entity.damage.DamageTracker;
 @Mixin(DamageTracker.class)
 public class MixinDamageTracker {
     // does not work :(
-    @Inject(method = "onDamage(Lnet/minecraft/entity/damage/DamageSource;FF)V", at = @At("HEAD"))
-    void foo(DamageSource source, float originalHealth, float damage, CallbackInfo ci){
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": onDamage " + source.toString());
-        }
-    }
+//    @Inject(method = "onDamage(Lnet/minecraft/entity/damage/DamageSource;FF)V", at = @At("HEAD"))
+//    void foo(DamageSource source, float originalHealth, float damage, CallbackInfo ci){
+//        if ( ExampleMod.LOGGER != null ) {
+//            ExampleMod.LOGGER.info("[d] " + this.toString() + ": onDamage " + source.toString());
+//        }
+//    }
 }

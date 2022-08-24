@@ -1,5 +1,6 @@
 package net.fabricmc.example.mixin;
 
+import net.fabricmc.example.ExampleMod;
 import net.fabricmc.example.handlers.ActionHandler;
 import net.fabricmc.example.SoundLog;
 
@@ -21,9 +22,14 @@ public class MixinSoundManager {
             cancellable = true
     )
     private void play(SoundInstance sound, CallbackInfo ci) {
-        SoundLog.add(sound);
-        if ( ActionHandler.shouldMuteSound(sound) ) {
-            ci.cancel();
+        if ( ExampleMod.CONFIG == null ) return;
+        if ( ExampleMod.CONFIG.logSounds ) {
+            SoundLog.add(sound);
+        }
+        if ( ExampleMod.CONFIG.filterSounds ) {
+            if ( ActionHandler.shouldMuteSound(sound) ) {
+                ci.cancel();
+            }
         }
     }
 }

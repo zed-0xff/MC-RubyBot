@@ -1,8 +1,26 @@
-[ ] auto-select tool on attack/mine/crop
-[ ] cut sugar cane
-[?] log inventory traffic
-[ ] auto-attack and fish
+[ ] drill auto refuel
+[ ] auto drink potions
+[ ] mute other players hit/loot sounds
+[ ] hide other players gifts
+[+] autoclick on my gifts
+[+] add persistent message, like count of crops on hoe
+[ ] relaunch minecraft
+[?] monitor packets
 [ ] console commands
-[ ] monitor console / log
-[ ] calendar
-[ ] add readme
+[ ] console shell commands with autocomplete
+[ ] block destroy canceling
+[ ] autodetect persistent blocks
+
+[ ] ../SkytilsMod/src/main/kotlin/skytils/skytilsmod/features/impl/events/GriffinBurrows.kt
+
+[ ] check interesting mixins:
+    MixinMinecraft.java
+    MixinLootContext.java
+    MixinEntity.java
+    MixinCommandSuggestionHelper.java
+
+
+ideas:
+    [ ] vim-like cmdline :)
+    [ ] fix hypixel chest++
+    [ ] QoL: implement /ec1 .. /ecN commands

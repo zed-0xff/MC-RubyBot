@@ -1,0 +1,8 @@
+{
+  "displayname": "Bat Firework",
+  "recipe": {
+    "A1": "GREEN_CANDY:100"
+  },
+  "internalname": "BAT_FIREWORK",
+  "crafttext": "Fear Mongerer"
+}

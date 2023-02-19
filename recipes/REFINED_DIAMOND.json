@@ -1,0 +1,8 @@
+{
+  "displayname": "Refined Diamond",
+  "recipe": {
+    "A1": "ENCHANTED_DIAMOND_BLOCK:2"
+  },
+  "internalname": "REFINED_DIAMOND",
+  "crafttext": "Forge 8h"
+}

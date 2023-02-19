@@ -1,0 +1,8 @@
+{
+  "displayname": "Spooky Helmet",
+  "recipe": {
+    "A1": "PURPLE_CANDY:64"
+  },
+  "internalname": "SPOOKY_HELMET",
+  "crafttext": "Fear Mongerer"
+}

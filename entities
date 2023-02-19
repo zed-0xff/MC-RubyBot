@@ -1,0 +1,19 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+require 'json'
+require 'uri'
+require 'net/http'
+require 'open-uri'
+
+uri = URI('http://127.0.0.1:9999/action')
+
+radius = ARGV.first.to_f
+radius = 60 if radius == 0
+
+script = [
+  { command: "entities", expand: {x: radius, y: radius, z: radius} }
+]
+
+res = Net::HTTP.post(uri, script.to_json)
+puts res.body
+

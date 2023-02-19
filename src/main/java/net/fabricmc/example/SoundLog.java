@@ -7,7 +7,7 @@ import com.google.gson.*;
 
 import net.minecraft.client.sound.SoundInstance;
 
-public class SoundLog {
+class SoundLog {
 
     static class LogEntry {
         int index; // there ARE multiple sounds per tick

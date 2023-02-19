@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+require_relative 'lib/common'
+
+uuid =
+  if ARGV.any?
+    ARGV.first
+  else
+    player.dig('looking_at', 'entity', 'uuid')
+  end
+
+if uuid
+  puts "[.] #{uuid}"
+  script = [{ command: "hideEntity", stringArg: uuid }]
+  res = Net::HTTP.post(ACTION_URI, script.to_json)
+end
+

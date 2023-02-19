@@ -1,0 +1,9 @@
+{
+  "displayname": "Bat Artifact",
+  "recipe": {
+    "A1": "PURPLE_CANDY:64",
+    "A2": "BAT_RING:1"
+  },
+  "internalname": "BAT_ARTIFACT",
+  "crafttext": "Fear Mongerer"
+}

@@ -1,0 +1,12 @@
+{
+  "displayname": "Drill Engine",
+  "recipe": {
+    "A1": "ENCHANTED_IRON_BLOCK:1",
+    "A2": "ENCHANTED_REDSTONE_BLOCK:3",
+    "A3": "GOLDEN_PLATE:1",
+    "B1": "TREASURITE:10",
+    "B2": "REFINED_DIAMOND:1"
+  },
+  "internalname": "DRILL_ENGINE",
+  "crafttext": "Forge 1d 6h"
+}

@@ -1,6 +1,7 @@
 package net.fabricmc.example.mixin;
 
 import net.fabricmc.example.ExampleMod;
+import net.fabricmc.example.handlers.ActionHandler;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -26,13 +27,20 @@ import java.util.OptionalInt;
 public class MixinScreenHandler {
     @Inject(
             method = "setStackInSlot(IILnet/minecraft/item/ItemStack;)V",
-            at = @At("HEAD")
+            at = @At("HEAD"),
+            cancellable = true
     )
     private void setStackInSlot(int slot, int revision, ItemStack stack, CallbackInfo ci) {
         if ( ExampleMod.LOGGER != null ){
+// not working
+//            if ( ActionHandler.isLockedSlot(((ScreenHandler)(Object)this).syncId, slot) ){
+//                ExampleMod.LOGGER.info("[d] canceling slot #" + slot + " update");
+//                ci.cancel();
+//            }
             if ( slot == 0 && stack != null && stack.getCount() == 0 && stack.getItem().equals(Items.AIR) ) {
                 return;
             }
+            // TODO: rewrite to internal log
             ExampleMod.LOGGER.info("[d] setStackInSlot(" + slot + ", " + revision + ", " + stack + ") syncId=" + ((ScreenHandler)(Object)this).syncId);
         }
     }
@@ -46,22 +54,6 @@ public class MixinScreenHandler {
 //        ExampleMod.LOGGER.info("[d] onSlotClick " + slotIndex);
 //        if ( slotIndex == 37 ) {
 //            ci.cancel();
-//        }
-//    }
-
-//    @Shadow
-//    @Final
-//    DefaultedList<Slot> slots;
-
-//    @Inject(
-//            method = "getSlotIndex(Lnet/minecraft/inventory/Inventory;I)Ljava/util/OptionalInt;",
-//            at = @At("HEAD"),
-//            cancellable = true
-//    )
-//    private void getSlotIndex(Inventory inventory, int index, CallbackInfoReturnable<OptionalInt> cir) {
-//        ExampleMod.LOGGER.info("[d] getSlot " + index);
-//        if ( index == 37 ) {
-//            cir.setReturnValue(OptionalInt.of(10));
 //        }
 //    }
 

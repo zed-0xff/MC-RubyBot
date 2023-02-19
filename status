@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ $# -eq 0 ]; then
+        curl -s http://127.0.0.1:9999 | jq .
+else
+        curl -s http://127.0.0.1:9999 | jq $*
+fi

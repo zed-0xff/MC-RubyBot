@@ -1,0 +1,8 @@
+{
+  "displayname": "Refined Titanium",
+  "recipe": {
+    "A1": "ENCHANTED_TITANIUM:16"
+  },
+  "internalname": "REFINED_TITANIUM",
+  "crafttext": "Forge 12h"
+}

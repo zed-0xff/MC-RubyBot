@@ -1,0 +1,9 @@
+{
+  "displayname": "Candy Ring",
+  "recipe": {
+    "A1": "GREEN_CANDY:64",
+    "A2": "CANDY_TALISMAN:1"
+  },
+  "internalname": "CANDY_RING",
+  "crafttext": "Fear Mongerer"
+}

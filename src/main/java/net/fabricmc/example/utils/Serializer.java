@@ -13,6 +13,8 @@ import net.minecraft.util.math.*;
 import net.minecraft.client.gui.screen.Screen;
 
 import net.fabricmc.loader.api.metadata.ModMetadata;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.util.Formatting;
 
 public class Serializer {
 
@@ -64,6 +66,17 @@ public class Serializer {
                 }
             })
         .registerTypeAdapter(
+            net.minecraft.client.gui.hud.ClientBossBar.class, 
+            new JsonSerializer<net.minecraft.client.gui.hud.ClientBossBar>() {
+                @Override
+                public JsonElement serialize(net.minecraft.client.gui.hud.ClientBossBar src, Type typeOfSrc, JsonSerializationContext context) {
+                    JsonObject obj = new JsonObject();
+                    obj.addProperty("percent", src.getPercent());
+                    obj.addProperty("name", Formatting.strip(src.getName().getString()));
+                    return obj;
+                }
+            })
+        .registerTypeAdapter(
             DamageSource.class, 
             new JsonSerializer<DamageSource>() {
                 @Override
@@ -109,13 +122,31 @@ public class Serializer {
                 public JsonElement serialize(Screen src, Type typeOfSrc, JsonSerializationContext context) {
                     JsonObject obj = new JsonObject();
                     obj.addProperty("title", src.getTitle().getString());
-                    obj.addProperty("narratedTitle", src.getNarratedTitle().getString());
                     obj.addProperty("children", src.children().size());
                     obj.addProperty("width", src.width);
                     obj.addProperty("height", src.height);
                     return obj;
                 }
             })
+//        .registerTypeAdapter(
+//            SoundInstance.class, 
+//            new JsonSerializer<SoundInstance>() {
+//                @Override
+//                public JsonElement serialize(SoundInstance src, Type typeOfSrc, JsonSerializationContext context) {
+//                    JsonObject obj = new JsonObject();
+//                    obj.addProperty("id", src.getId().toString());
+//                    obj.addProperty("pitch", src.getPitch());
+//                    obj.addProperty("volume", src.getVolume());
+//                    if (src.isRelative()) {
+//                        obj.addProperty("relative", src.isRelative());
+//                    }
+//                    obj.addProperty("x", src.getX());
+//                    obj.addProperty("y", src.getY());
+//                    obj.addProperty("z", src.getZ());
+//                    // a sound can also have Entity / ClientPlayerEntity (for elytra)
+//                    return obj;
+//                }
+//            })
         .registerTypeAdapter(
             Vec3d.class, 
             new JsonSerializer<Vec3d>() {

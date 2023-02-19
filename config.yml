@@ -1,0 +1,393 @@
+rules:
+  stops:
+    blocks:
+      - bush
+      - chest
+      - grass
+      - hay_block
+      - oak_fence
+      - oak_leaves
+      - tall_grass
+      - torch
+    action: release
+
+  bedrock:
+    blocks:
+      - bedrock
+    action: mine_static
+    delay: 50
+
+  ores:
+    blocks:
+      - lapis_ore
+      - redstone_ore
+      - diamond_ore
+      - emerald_ore
+      - obsidian
+      - nether_quartz_ore
+      - glowstone
+    not_zones:
+      - The End
+      - Your Island
+    tool: /PICKAXE/
+    action: hold_left
+
+  carrots:
+    blocks:
+      - carrots
+    age: 7
+    tools:
+      - /_HOE_CARROT_/
+      - /_HOE/
+    action: break_max
+    maps:
+      - Hub
+      - The Farming Islands
+      - Private Island
+
+  potatoes:
+    blocks:
+      - potatoes
+    tools:
+      - /_HOE_POTATO_/
+      - /_HOE/
+    action: break_max_3d
+    maps:
+      - Hub
+      - The Farming Islands
+
+  wheat:
+    blocks:
+      - wheat
+    age: 7
+    tools:
+      - /_HOE_WHEAT_/
+      - /_HOE/
+    action: break_max_3d
+    maps:
+      - Hub
+      - The Farming Islands
+      - Private Island
+
+  sugar_cane:
+    blocks:
+      - sugar_cane
+    tools:
+      - /_HOE_CANE_/
+      - /_HOE/
+    action: break_max
+    min_y: 3
+    maps:
+      - Private Island
+      - Hub
+      - The Farming Islands
+
+  crops:
+    blocks:
+      - nether_wart
+    tool: /_HOE/
+    action: break_max_3d
+    inertia: 30
+      #action: break_block
+      #oneshot: true
+    maps:
+      - Hub
+      - The Farming Islands
+
+  shrooms:
+    blocks:
+      - red_mushroom
+      - brown_mushroom
+    tools:
+      - MOBYS_SHEARS
+      - /_HOE/
+    action: break_max_3d
+    zones:
+      - Mushroom Gorge
+      - Overgrown Mushroom Cave
+      - Mushroom Desert
+      - Glowing Mushroom Cave
+
+  big_shrooms:
+    blocks:
+      - mushroom_stem
+      - brown_mushroom_block
+      - red_mushroom_block
+    tool: /_AXE/
+    action: hold_left
+    zones:
+      - Mushroom Gorge
+      - Overgrown Mushroom Cave
+      - Mushroom Desert
+      - Glowing Mushroom Cave
+
+  melons:
+    blocks:
+      - melon
+    zones:
+      - The Barn
+    action: hold_left
+    tool: /_AXE/
+
+  pumpkins:
+    blocks:
+      - carved_pumpkin
+    zones:
+      - The Barn
+      - Your Island
+    action: break_max_3d
+    tool: PUMPKIN_DICER
+
+  gather_cocoa:
+    blocks:
+      - cocoa
+    age: 2
+    tools:
+      - COCO_CHOPPER
+      - PROMISING_AXE
+    action: break_max_3d
+
+  plant_cocoa:
+    enabled: false
+    blocks:
+      - jungle_log
+    player_facing:
+      - east
+      - west
+    tool: INK_SACK:3 # unenchanted cocoa beans
+    zones:
+      - Your Island
+    actions:
+      - release
+      - interact_block
+    sides:
+      - west
+      - east
+
+  cactus:
+    blocks:
+      - cactus
+    tool: CACTUS_KNIFE
+    not_zones:
+      - Your Island
+    action: break_block
+
+  woods:
+    blocks:
+      - acacia_log
+      - acacia_wood
+      - birch_log
+      - birch_wood
+      - dark_oak_log
+      - dark_oak_wood
+      - jungle_log
+      - jungle_wood
+      - oak_log
+      - oak_wood
+      - spruce_log
+      - spruce_wood
+    tools:
+      - JUNGLE_AXE
+      - /TREECAP/
+    action: hold_left
+    zones:
+      - Park
+      - Birch Park
+      - Spruce Woods
+      - Savanna Woodland
+      - Jungle Island
+      - Forest
+      - Dark Thicket
+
+  mithril_titanium:
+    blocks:
+      - prismarine
+      - prismarine_bricks
+      - dark_prismarine
+      - light_blue_wool
+      - polished_diorite # titanium
+      - gray_wool
+      - cyan_terracotta
+    maps:
+      - Dwarven Mines
+    tool: /(MITHRIL|TITANIUM)_(PICKAXE|DRILL)/
+    action: break_block
+
+  sand:
+    blocks:
+      - sand
+    zones:
+      - Mushroom Desert
+    tool: /_SPADE/
+    action: hold_left
+
+  gravel:
+    blocks:
+      - gravel
+    tools:
+      - /_SHOVEL/
+      - /_SPADE/
+    not_zones:
+      - Your Island
+    action: hold_left
+
+  ice:
+    blocks:
+      - ice
+    zones:
+      - Jerry Pond
+      - Your Island
+    tool: /_PICKAXE/
+    action: break_max
+    oneshot: true
+
+  jungle_leaves:
+    blocks:
+      - jungle_leaves
+    tool: SHEARS
+    action: hold_left
+
+  lily_pad:
+    blocks:
+      - lily_pad
+    tools:
+      - SHEARS
+      - DEFUSE_KIT
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+    action: break_max
+    oneshot: true
+
+  crystal_hollows:
+    blocks:
+      - coal_ore
+      - coal_block
+      - diamond_block
+      - emerald_block
+      - gold_block
+      - gold_ore
+      - gray_terracotta
+      - iron_ore
+      - redstone_block
+    tools:
+      - /PICKAXE/
+      - /DRILL/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: break_block
+
+  crystal_hollows_slow:
+    blocks:
+      - dark_prismarine
+      - gray_terracotta
+      - light_blue_wool
+      - obsidian
+      - prismarine
+      - prismarine_bricks
+    tools:
+      - /DRILL/
+      - /PICKAXE/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: hold_left
+
+  hardstone:
+    blocks:
+      - andesite
+      - blue_terracotta
+      - cyan_terracotta
+      - gray_wool
+      - polished_andesite
+      - polished_granite
+      - stone
+      - yellow_terracotta
+    # don't mine downwards
+    sides:
+      - down
+      - north
+      - south
+      - east
+      - west
+    tools:
+      - /PICKAXE/
+      - /DRILL/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: hold_left
+
+  gemstones:
+    blocks:
+      - light_blue_stained_glass
+      - light_blue_stained_glass_pane
+      - blue_stained_glass
+      - blue_stained_glass_pane
+      - orange_stained_glass
+      - orange_stained_glass_pane
+      - purple_stained_glass
+      - purple_stained_glass_pane
+      - lime_stained_glass
+      - lime_stained_glass_pane
+    tool: /PICKONIMBUS|TITANIUM_DRILL/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: hold_left
+
+  ruby:
+    blocks:
+      - red_stained_glass
+      - red_stained_glass_pane
+    tools:
+      - TITANIUM_PICKAXE
+      - /TITANIUM_DRILL_[23]/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: hold_left
+
+  topaz:
+    blocks:
+      - yellow_stained_glass
+      - yellow_stained_glass_pane
+    tool: /TITANIUM_DRILL_[23]/
+    maps:
+      - Crystal Hollows
+    not_zones:
+      - Jungle Temple
+      - Crystal Nucleus
+    action: hold_left
+
+  plant_sugar_cane:
+    # TODO: only near water
+    blocks:
+      - dirt
+    tool: SUGAR_CANE
+    maps:
+      - Private Island
+    action: interact_block
+
+  plant_cocoa:
+    blocks:
+      - jungle_log
+    facing:
+      - west
+      - east
+    tool: INK_SACK:3 # cocoa beans O_o
+    maps:
+      - Private Island
+    action: interact_block

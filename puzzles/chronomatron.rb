@@ -1,9 +1,11 @@
 #!/usr/bin/env ruby
 require_relative '../autoattack'
 
+$stdout.sync = true
+
 LOG_FNAME = "~/minecraft/logs/latest.log"
 
-# slots:
+# level 1 slots:
 #
 #      04      round
 #  12  13  14
@@ -12,9 +14,19 @@ LOG_FNAME = "~/minecraft/logs/latest.log"
 #
 #      49      timer
 
-def get_text stack
-  map{ |stack| JSON.parse(stack.dig('tag', 'display', 'Name'))['extra'].map{ |x| x['text'] }.join }
-end
+# level 2 slots:
+#
+#          04
+#  11  12  13  14  15
+#  20  21  22  23  24
+#  29  30  31  32  33
+#
+#          49
+
+FIRST_NOTE_SLOT = {
+  'High'  => 12,
+  'Grand' => 11,
+}
 
 MC.cache_ttl = 0.01
 
@@ -35,13 +47,21 @@ def get_sounds round, msg
         puts "[?] failed to get sounds :("
         exit 1
       end
-      if line.to_s =~ /sound: minecraft:block\.note_block\.pling,.*pitch:\s*0\.(\d)/
+      if line.to_s =~ /sound: minecraft:block\.note_block\.pling,.*pitch:\s*(\d\.\d)/
         #puts "[d] #{line}"
-        # 5 RED
-        # 6 BLUE
-        # 7 LIME
-        r << ($1.to_i - 5)
-        return r if r.size == round
+        # 0.5 RED
+        # 0.6 BLUE
+        # 0.7 LIME
+        # 0.8 YELLOW
+        # 1.0 AQUA
+        note = (($1.to_f*10).to_i - 5)
+        note -= 1 if note == 5
+        r << note
+        printf " %d", note
+        if r.size == round
+          puts
+          return r 
+        end
       end
     end
   end
@@ -51,31 +71,44 @@ ROUND_SLOT_IDX = 4
 MODE_SLOT_IDX = 49
 
 def solve
-  wait_for("Chronomatron screen", max_wait: nil) { MC.screen && MC.screen.title =~ /Chronomatron \(/ }
+  puts "[!] equip Guardian pet!"
+  round = 1
+  wait_for("Chronomatron screen", max_wait: nil) { MC.screen && MC.screen.title =~ /Chronomatron \(.+\)/ }
   loop do
-    wait_for { MC.screen && MC.screen.slots[ROUND_SLOT_IDX].stack.is_a?(:bookshelf) }
+    wait_for(max_wait: nil) { MC.screen && MC.screen.slots[ROUND_SLOT_IDX].stack.is_a?(:bookshelf) }
     bookshelf = MC.screen.slots[ROUND_SLOT_IDX].stack
     mode_stack = MC.screen.slots[MODE_SLOT_IDX].stack # glowstone => remember, clock => play
 
-    msg = [bookshelf, mode_stack].
-      map{ |stack| JSON.parse(stack.dig('tag', 'display', 'Name'))['extra'].map{ |x| x['text'] }.join }.
-      join(", ")
-    puts "[.] #{msg}"
+    msg = [bookshelf, mode_stack].map(&:display_name).join(", ")
+    puts "[*] #{msg}".white
 
-    if msg =~ /Round: (\d+), Remember the pattern/
+    if msg =~ /Round:\s+(\d+), Remember the pattern/
       round = $1.to_i
       log msg
       if round == 16
         puts "[*] all done!".green
         return true
       end
+      $stdout << "[.] Listen:"
       sounds = get_sounds(round, msg)
       wait_for(max_wait: nil) { MC.screen.slots[MODE_SLOT_IDX].stack.is_a?(:clock) }
       sleep(rand()/2)
+
+      base = 
+        if MC.screen.title =~ /Chronomatron \((.+)\)/
+          FIRST_NOTE_SLOT[$1]
+        else
+          puts "[!] can't get base slot for level #{$1}".red
+          12
+        end
+
+      $stdout << "[.] Play:  "
       sounds.each do |x|
-        MC.screen.slots[12+x].click!
+        printf " %d", x
+        MC.screen.slots[base+x].click!
         sleep(0.2 + rand()/2)
       end
+      puts
     else
       sleep 0.1
     end

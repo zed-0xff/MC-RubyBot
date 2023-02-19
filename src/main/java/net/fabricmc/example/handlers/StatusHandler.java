@@ -43,6 +43,8 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.text.Text;
 import net.minecraft.world.World;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.client.gui.hud.ClientBossBar;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -216,10 +218,20 @@ public class StatusHandler implements HttpHandler {
         obj.addProperty("canHit", entity.canHit());
         obj.addProperty("horizontalFacing", entity.getHorizontalFacing().getName());
 
+
         String name = null;
-        if ( entity.getName() != null ) {
-            obj.addProperty("name", name = entity.getName().getString());
+        if ( !(entity instanceof ArmorStandEntity) ){
+            // hypixel custom entity name magick
+            Entity nameEntity = mc.world.getEntityById( entity.getId() + 1 );
+            if ( (nameEntity instanceof ArmorStandEntity) && (nameEntity.getName() != null) ) {
+                name = nameEntity.getName().getString();
+            }
         }
+        if ( name == null && entity.getName() != null ) {
+            name = entity.getName().getString();
+        }
+        obj.addProperty("name", name);
+
         String ename;
         if ( (ename = entity.getEntityName()) != null ) {
             if (!ename.equals(entity.getUuidAsString()) && !ename.equals(name))
@@ -240,15 +252,27 @@ public class StatusHandler implements HttpHandler {
             obj.addProperty("outlineColor", outlineColor);
         }
 
+        obj.addProperty("distance", entity.distanceTo(mc.player));
+
         return obj;
     }
 
     public static JsonObject serializeEntity(Entity entity) {
+        return serializeEntity(entity, new HashSet<Entity>());
+    }
+
+    public static JsonObject serializeEntity(Entity entity, Set<Entity> serializedEntities) {
         if ( entity == null ) return null;
 
         EntityCache.put(entity);
 
         JsonObject obj = serializeEntityCompact(entity);
+        if ( serializedEntities.contains(entity) ){
+            // prevent infinite loop & stack overflow
+            return obj;
+        }
+        serializedEntities.add(entity);
+
         obj.addProperty("pose", entity.getPose().toString());
         obj.addProperty("speed", getSpeed(entity));
         obj.addProperty("yaw", MathHelper.wrapDegrees(entity.getYaw()));
@@ -260,7 +284,7 @@ public class StatusHandler implements HttpHandler {
         if (entity instanceof LivingEntity) {
             LivingEntity le = (LivingEntity) entity;
             obj.addProperty("alive", le.isAlive());
-            obj.add("attacking", serializeEntity(le.getAttacking()));
+            obj.add("attacking", serializeEntity(le.getAttacking(), serializedEntities));
 //            obj.addProperty("activeEyeHeight", ((LivingEntityAccessor)le).invokeGetActiveEyeHeight(le.getPose(), le.getDimensions(le.getPose())));
 //            obj.addProperty("health", le.getHealth());
 //            obj.addProperty("max_health", le.getMaxHealth());
@@ -331,7 +355,7 @@ public class StatusHandler implements HttpHandler {
         obj.add("mana", GSON.toJsonTree(statusBarTracker.getMana()));
         obj.add("skills", GSON.toJsonTree(XPInformation.getInstance().getSkillInfoMap()));
         obj.addProperty("abilityCharges", XPInformation.tickers);
-        obj.addProperty("isBreakingBlock", mc.interactionManager.isBreakingBlock());
+        obj.addProperty("isBreakingBlock", BlockBreakHelper.isBreakingBlock() || mc.interactionManager.isBreakingBlock());
         obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
         return obj;
     }
@@ -350,7 +374,7 @@ public class StatusHandler implements HttpHandler {
         obj.addProperty("experienceLevel", mc.player.experienceLevel);
         obj.addProperty("experienceProgress", mc.player.experienceProgress);
         obj.addProperty("reachDistance", mc.interactionManager.getReachDistance());
-        obj.addProperty("isBreakingBlock", mc.interactionManager.isBreakingBlock());
+        obj.addProperty("isBreakingBlock", BlockBreakHelper.isBreakingBlock() || mc.interactionManager.isBreakingBlock());
         obj.add("looking_at", serializeHitResult(mc.crosshairTarget));
         return obj;
     }
@@ -359,22 +383,26 @@ public class StatusHandler implements HttpHandler {
         return serializeInventory(src, 0);
     }
 
+    public static JsonObject serializeItemStack(ItemStack stack) {
+        return serializeItemStack(stack, 0);
+    }
+
+    public static JsonObject serializeItemStack(ItemStack stack, int flags) {
+        if ( stack == null )
+            return null;
+        OpenNbtCompound nbt = new OpenNbtCompound();
+        stack.writeNbt(nbt);
+        JsonObject obj = nbt.asJson(flags);
+        obj.addProperty("maxCount", stack.getMaxCount());
+        return obj;
+    }
+
     private static JsonArray serializeInventory(Inventory src, int flags) {
         if ( src == null ) return null;
         JsonArray arr = new JsonArray();
         if ( src.isEmpty() ) return arr;
         for ( int i=0; i<src.size(); i++ ) {
-            ItemStack stack = src.getStack(i);
-            if ( stack == null ) {
-                arr.add((JsonObject)null);
-                continue;
-            }
-
-            OpenNbtCompound nbt = new OpenNbtCompound();
-            stack.writeNbt(nbt);
-            JsonObject obj = nbt.asJson(flags);
-            obj.addProperty("maxCount", stack.getMaxCount());
-            arr.add(obj);
+            arr.add(serializeItemStack(src.getStack(i), flags));
         }
         return arr;
     }
@@ -417,6 +445,7 @@ public class StatusHandler implements HttpHandler {
         obj.addProperty("syncId", handler.syncId);
         obj.addProperty("class", handler.getClass().getName());
         obj.addProperty("revision", handler.getRevision());
+        obj.add("cursorStack", serializeItemStack(handler.getCursorStack()));
         return obj;
     }
 
@@ -426,7 +455,6 @@ public class StatusHandler implements HttpHandler {
         obj.addProperty("class", screen.getClass().getName());
         obj.addProperty("classShort", Mappings.class2short(screen.getClass()));
         obj.addProperty("title", screen.getTitle().getString());
-        obj.addProperty("narratedTitle", screen.getNarratedTitle().getString());
         obj.addProperty("width", screen.width);
         obj.addProperty("height", screen.height);
         if ( screen instanceof HandledScreen ) {
@@ -446,6 +474,7 @@ public class StatusHandler implements HttpHandler {
             obj.add("inventories", inventories);
         }
         obj.add("children", serializeScreenChildren(screen));
+        obj.addProperty("cursorDragging", screen.isDragging());
         return obj;
     }
 
@@ -511,7 +540,8 @@ public class StatusHandler implements HttpHandler {
                         status = 404;
                     }
                 } else {
-                    obj = buildJson(null);
+                    obj = getStatus(null);
+                    obj.addProperty("tick_time", ExampleMod.tickStart.getTime());
                     obj.addProperty("processing_time", stopwatch.getTime());
                 }
 
@@ -590,14 +620,16 @@ public class StatusHandler implements HttpHandler {
     }
 
     // main
-    public static JsonObject buildJson(JsonObject obj) {
+    public static JsonObject getStatus(JsonObject obj) {
         if ( obj == null ) {
             obj = new JsonObject();
         }
         obj.addProperty("tick", ExampleMod.tick);
         if ( mc.player != null ) {
             obj.add("player", serializePlayer());
-//            obj.addProperty("biome", getBiomeId(mc.player.getPos()));
+        }
+        if ( mc.cameraEntity != null && mc.cameraEntity != mc.player ) {
+            obj.add("camera", serializeEntity(mc.cameraEntity));
         }
         if ( locraw != null ) {
             obj.add("locraw", GSON.toJsonTree(locraw));
@@ -612,6 +644,10 @@ public class StatusHandler implements HttpHandler {
         obj.add("world", serializeWorld(mc.world));
         obj.add("hud", serializeHUD());
         obj.addProperty("status", "full");
+        obj.addProperty("status", "full");
+        obj.add("bossBars", Serializer.toJsonTree(
+                    ((BossBarHudAccessor)mc.inGameHud.getBossBarHud()).getBossBars()
+                    ));
         return obj;
     }
 

@@ -1,0 +1,9 @@
+{
+  "displayname": "Candy Relic",
+  "recipe": {
+    "A1": "PURPLE_CANDY:1024",
+    "A2": "CANDY_ARTIFACT:1"
+  },
+  "internalname": "CANDY_RELIC",
+  "crafttext": "Fear Mongerer"
+}

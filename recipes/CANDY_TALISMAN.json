@@ -1,0 +1,8 @@
+{
+  "displayname": "Candy Talisman",
+  "recipe": {
+    "A1": "GREEN_CANDY:16"
+  },
+  "internalname": "CANDY_TALISMAN",
+  "crafttext": "Fear Mongerer"
+}

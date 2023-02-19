@@ -1,0 +1,8 @@
+{
+  "displayname": "Refined Mithril",
+  "recipe": {
+    "A1": "ENCHANTED_MITHRIL:160"
+  },
+  "internalname": "REFINED_MITHRIL",
+  "crafttext": "Forge 6h"
+}

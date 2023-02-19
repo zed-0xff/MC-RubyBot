@@ -1,0 +1,8 @@
+{
+  "displayname": "Horseman's Candle",
+  "recipe": {
+    "A1": "PURPLE_CANDY:32"
+  },
+  "internalname": "HORSEMAN_CANDLE",
+  "crafttext": "Fear Mongerer"
+}

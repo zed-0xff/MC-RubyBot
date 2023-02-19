@@ -1,179 +1,200 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
-require 'json'
-require 'uri'
-require 'net/http'
-require 'pp'
-require 'open-uri'
+require_relative 'autoattack'
+require_relative 'commissions'
 
-ACTION_URI = URI('http://localhost:9999/action')
+RADIUS = 50
+BLOCKTYPES = ARGV
+THR = 1.4
 
-class Pos
-  attr_accessor :x, :y, :z
+if BLOCKTYPES.empty?
+  puts "gimme block id(s)"
+  exit 1
+end
 
-  def initialize x, y=nil, z=nil
-    if x.is_a?(Hash)
-      h = x.transform_keys(&:to_sym)
-      @x, @y, @z = h[:x], h[:y], h[:z]
-    else
-      @x, @y, @z = x, y, z
+@negatives = Set.new
+@prev_time = Time.now - 10
+
+def check_particles
+  @pindex ||= 0
+  ltick = 0
+  loop do
+    r = MC.get_particles! prev_index: @pindex
+    r['particles'].each do |p|
+      @pindex = [p['index'], @pindex].max
+      if p['effect'] == 'minecraft:crit'
+        MC.chat! "#stop" if ltick == 0
+        ltick = [p['tick'], ltick].max
+        pos = Pos.new(p['x'], p['y'], p['z'])
+        MC.look_at! pos
+      end
     end
+    break if MC.last_tick - ltick > 50
+    sleep 0.5
   end
+  ltick != 0
+end
 
-  def to_s
-    inspect
-  end
-
-  def to_h
-    { x: @x, y: @y, z: @z }
-  end
-
-  def - other_pos
-    Pos.new(
-      x - other_pos.x,
-      y - other_pos.y,
-      z - other_pos.z
-    )
-  end
-
-  def + other_pos
-    Pos.new(
-      x + other_pos.x,
-      y + other_pos.y,
-      z + other_pos.z
-    )
+def kill_mobs
+  mobs = getMobs(reachable: :loose)['mobs'].
+    find_all{ |m| is_mob?(m) }
+  if mobs.any?
+    attack_nearest timeout: 1
   end
 end
 
-@status_timestamp = nil
-@status = nil
-
-def status
-  if @status.nil? || ((Time.now-@status_timestamp) > 5)
-    @status_timestamp = Time.now
-    data = nil
-    data = URI.open("http://localhost:9999").read
+def enchant!
+  if MC.player.inventory.full?
+    sleep 0.1
     begin
-      @status = JSON.parse(data)
-    rescue JSON::ParserError
-      puts data
-      raise
+      enchant_inventory!
+    rescue => e
+      puts "[!] #{e}".red
+      sleep 1
+      return
+    ensure
+      MC.close_screen!
     end
-  else
-    @status
+    sleep 0.2
+    # prevent not mining after enchant
+    MC.press_key! 'key.mouse.left'
+    sleep 0.05
+    MC.release_key! 'key.mouse.left'
   end
 end
 
-def pos
-  Pos.new status['player']['pos']
+@last_sound_index = 0
+
+HIT_SOUNDS = %w'minecraft:block.stone.hit minecraft:block.glass.hit'
+
+def wait_for_silence nticks
+  last_stone_hit_tick = nil
+  t0 = MC.last_tick
+  while last_stone_hit_tick.nil? || (MC.last_tick - last_stone_hit_tick < nticks)
+    check_particles
+    sounds = MC.get_sounds!(prev_index: @last_sound_index)['sounds']
+    if sounds.any?
+      l = sounds.find_all{ |s| HIT_SOUNDS.include?(s['id']) }.map{ |s| s['tick'] }.max
+      last_stone_hit_tick = l if l
+      last_sound = sounds.sort_by{ |s| s['index'] }.last
+      @last_sound_index = last_sound['index']
+    end
+    sleep 0.1
+    break if last_stone_hit_tick.nil? && MC.last_tick - t0 > nticks
+  end
 end
 
-def scan r=3
-  script = [
-    { command: "blocks", box: {
-      minX: pos.x-r, minY: pos.y-1, minZ: pos.z-r,
-      maxX: pos.x+r, maxY: (pos.y+[3, r].min), maxZ: pos.z+r,
-    }}
-  ]
-  res = Net::HTTP.post(ACTION_URI, script.to_json)
-  data = res.body
-  begin
-    JSON.parse(data)
-  rescue JSON::ParserError
-    puts data
+def go axis, dir, bpos
+  case [axis, dir]
+  when [:x, -1]
+    MC.set_pitch_yaw! yaw: +90, pitch: 0
+  when [:x, +1]
+    MC.set_pitch_yaw! yaw: -90, pitch: 0
+  when [:z, -1]
+    MC.set_pitch_yaw! yaw: 180, pitch: 0
+  when [:z, +1]
+    MC.set_pitch_yaw! yaw: 0, pitch: 0
+  else
     raise
   end
-end
+  sleep 0.1
 
-def travel target
-#  target.y = 0
-  puts "[d] travel #{target}"
-  @status = nil
-  script = [ { command: "travel", target: target.to_h } ]
-  res = Net::HTTP.post(ACTION_URI, script.to_json)
-end
+#  loop do
+#    MC.press_key! 'w'
+#    while (bpos.send(axis) <=> MC.player.pos.send(axis).to_i) == dir
+#      pos0 = MC.player.pos
+#      sleep 0.1
+#      break if MC.player.pos == pos0
+#    end
+#    MC.release_key! 'w'
+#    return if (MC.player.pos.send(axis) - bpos.send(axis)).abs < THR
+#
+#    l = (MC.player.pos.send(axis).to_i - bpos.send(axis)).abs + 2
+#    MC.chat! "#tunnel 2 2 #{l}"
+#    sleep 1
+#    wait_for_silence 30
+#    puts "[d] tunneling done"
+#    MC.chat! "#stop"
+#    break
+#  end
 
-MIN_TRAVEL = 0.01
-MAX_STEPS  = 20
-
-def move_to target
-  target = Pos.new(target) if target.is_a?(Hash) && target.key?("x")
-  puts "[d] move_to #{target}"
-  steps = 0
-  prev_pos = status['player']['pos']
-  while (pos.x.to_i != target.x.to_i || pos.z.to_i != target.z.to_i) && steps < MAX_STEPS
-    delta = target-pos
-    break if delta.x < MIN_TRAVEL && delta.z < MIN_TRAVEL
-    travel delta
-    sleep 0.05
-    steps += 1
+  MC.chat! "#tunnel 2 1 100"
+  sleep 0.01
+  MC.invalidate_cache!
+  poss = []
+  while (bpos.send(axis) <=> MC.player.pos.send(axis).to_i) == dir
+    break if MC.current_map != "Crystal Hollows"
+    break if check_particles
+    break if respect_player
+    poss << MC.player.pos
+    if poss.size > 20
+      poss.shift
+      if poss.uniq.size == 1
+        puts "[?] stuck".yellow
+        MC.chat! "#stop"
+        if false && MC.player.dig('looking_at', 'block', 'id').to_s =~ /_glass/
+          MC.chat! "#tunnel 2 5 5"
+          sleep 5
+        else
+          key = %w'w s a d'.random
+          MC.press_key! key
+          sleep 1
+          MC.release_key! key
+          break
+        end
+      end
+    end
+    sleep 0.2
   end
-  @status = nil
-  prev_pos != status['player']['pos']
+  MC.chat! "#stop"
 end
 
-def look_at target
-  target = Pos.new(target) if target.is_a?(Hash) && target.key?("x")
-  script = [ { command: "lookAt", target: target.to_h, delay: (10+rand(20)) } ]
-  res = Net::HTTP.post(ACTION_URI, script.to_json)
-  @status = nil
-end
+def dig_to b
+  bpos = Pos[b['pos']]
+  puts "[.] #{MC.player.pos.to_a.map(&:to_i)} -> #{bpos.to_a}"
+  #MC.look_at! bpos
+  MC.chat! "#goal #{bpos.to_a.join(' ')}"
 
-def mine!
-  script = [ { command: "mine", delay: 250 } ]
-  res = Net::HTTP.post(ACTION_URI, script.to_json)
-  @status = nil
-end
-
-@unreachables = Hash.new(0)
-@unreach_player_pos = nil
-
-def unreachable pos
-  if @unreach_player_pos != status['player']['pos']
-    puts "\n[d] clearing unreachables"
-    @unreach_player_pos = status['player']['pos']
-    @unreachables.clear
-  end
-  @unreachables[pos] += 1
-  $stdout << "unreachable #{@unreachables[pos]}"
-end
-
-loop do
-  ores = scan(4).
-    find_all{ |x| x['id']['_ore'] }.
-    sort_by{ |x| x['id']['_coal'] ? 0 : 1 }.
-    delete_if{ |x| @unreachables[x['pos']] > 1 }
-
-  if ores.empty?
-    far_ores = scan(7).
-      find_all{ |x| x['id']['_ore'] }.
-      delete_if{ |x| @unreachables[x['pos']] > 1 }
-    if far_ores.any?
-      far_ores.shuffle.each do |ore|
-        look_at ore['pos']
-        break if move_to(ore['pos'])
-        puts "[?] move failed"
-        sleep 1
+  loop do
+    if MC.player.pos.x - bpos.x > THR
+      go :x, -1, bpos
+    elsif bpos.x - MC.player.pos.x > THR
+      go :x, +1, bpos
+    elsif MC.player.pos.z - bpos.z > THR
+      go :z, -1, bpos
+    elsif bpos.z - MC.player.pos.z > THR
+      go :z, +1, bpos
+    elsif MC.player.pos.y - bpos.y > THR
+      y = 0
+      while MC.player.pos.y - bpos.y > THR
+        MC.set_pitch_yaw! pitch: 80, yaw: y
+        sleep 0.4
+        y += 90
       end
     else
-      sleep(1 + rand()*5)
-    end
-  else
-    ores.each do |block|
-      printf "[.] %s .. ", block.to_s
-
-      #move_to Pos.new(block['pos'])
-      look_at(Pos.new(block['pos']) + Pos.new(0.2+rand()/3, 0.2+rand()/3-1, 0.2+rand()/3))
-      #look_at(Pos.new(block['pos']) + Pos.new(0, -1, 0))
-
-      sleep 0.02
-      if status.dig('player', 'looking_at', 'block').to_s['_ore']
-        mine!
-      else
-        unreachable block['pos']
-      end
-      puts
-      sleep rand()*0.2
+      gather_near
+      return true
     end
   end
 end
+
+MC.chat! "#stop"
+#auto_jump true
+
+begin
+  while MC.current_map == "Crystal Hollows"
+    if MC.player.inventory.full?
+      MC.chat! "#stop"
+      enchant!
+    end
+    if commissions.values.include?("DONE")
+      MC.chat! "#stop"
+      call_emissary
+    end
+    MC.chat!("#mine " + BLOCKTYPES.join(" ")) if MC.player.speed == 0
+    sleep 5
+  end
+rescue Interrupt
+end
+
+MC.chat! "#stop"
+auto_jump false

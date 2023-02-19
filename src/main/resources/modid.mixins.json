@@ -6,6 +6,7 @@
   "mixins": [
   ],
   "client": [
+    "BossBarHudAccessor",
     "ClientPlayerInteractionManagerAccessor",
     "ContainerAccessor",
     "EntityRenderDispatcherAccessor",
@@ -14,13 +15,14 @@
     "MessagesAccessor",
     "MinecraftClientAccessor",
     "MixinAbstractBlockState",
+    "MixinBlockRenderManager",
     "MixinClientConnection",
     "MixinClientPlayNetworkHandler",
     "MixinClientPlayerEntity",
     "MixinClientPlayerInteractionManager",
+    "MixinClientWorld",
     "MixinDamageTracker",
     "MixinEntityRenderDispatcher",
-    "MixinBlockEntityRenderDispatcher",
     "MixinFishingBobberEntityRenderer",
     "MixinGameRenderer",
     "MixinHandledScreen",

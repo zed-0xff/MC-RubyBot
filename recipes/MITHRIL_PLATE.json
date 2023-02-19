@@ -1,0 +1,11 @@
+{
+  "displayname": "Mithril Plate",
+  "recipe": {
+    "A1": "REFINED_MITHRIL:5",
+    "A2": "GOLDEN_PLATE:1",
+    "A3": "ENCHANTED_IRON_BLOCK:1",
+    "B1": "REFINED_TITANIUM:1"
+  },
+  "internalname": "MITHRIL_PLATE",
+  "crafttext": "Forge 18h"
+}

@@ -1,0 +1,9 @@
+{
+  "displayname": "Intimidation Artifact",
+  "recipe": {
+    "A1": "PURPLE_CANDY:100",
+    "A2": "INTIMIDATION_RING:1"
+  },
+  "internalname": "INTIMIDATION_ARTIFACT",
+  "crafttext": "Fear Mongerer"
+}

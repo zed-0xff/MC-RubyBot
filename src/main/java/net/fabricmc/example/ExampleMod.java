@@ -21,10 +21,12 @@ import net.minecraft.client.Mouse;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
+import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class ExampleMod implements ModInitializer {
     public static final String MOD_ID = "ExternalBrainz";
@@ -32,7 +34,8 @@ public class ExampleMod implements ModInitializer {
     public static ModConfig CONFIG = null;
     public static int tick = 0;
 
-    // TODO: runnables
+    public static StopWatch tickStart = new StopWatch();
+
     public static boolean shouldLockCursor = false;
     public static boolean shouldUnlockCursor = false;
     public static boolean shouldCloseScreen = false;
@@ -67,10 +70,13 @@ public class ExampleMod implements ModInitializer {
     }
 
     private void clientReady(MinecraftClient client) {
-        try {
-            GdmcHttpServer.startServer(client);
-        } catch (IOException e) {
-            LOGGER.warn("Unable to start server!");
+        for( int port = 9999; port < 10010; port++ ) {
+            try {
+                GdmcHttpServer.startServer(client, port);
+                break;
+            } catch (IOException e) {
+                LOGGER.warn("Unable to start server at port " + port + " !");
+            }
         }
     }
 
@@ -86,8 +92,8 @@ public class ExampleMod implements ModInitializer {
                 InputUtil.fromTranslationKey("key.keyboard.left.shift")
                 ));
 
-    public static boolean isRenderThread( long id ){
-        return renderThreadId == id;
+    public static boolean inRenderThread(){
+        return renderThreadId == Thread.currentThread().getId();
     }
 
     public static void enqueue(Runnable r) {
@@ -96,7 +102,7 @@ public class ExampleMod implements ModInitializer {
 
     // GUI tasks should be run in the render thread
     // or exception 'Rendersystem called from wrong thread' will occur
-    private void processGuiTasks() {
+    private void processRunnables() {
         if (shouldLockCursor) {
             mc.mouse.lockCursor();
             shouldLockCursor = false;
@@ -113,16 +119,36 @@ public class ExampleMod implements ModInitializer {
             shouldCloseScreen = false;
         }
 
-        if ( queue.size() > 0 ) {
-            LOGGER.info("[d] " + queue.size() + " runnables enqueued");
+        //if ( queue.size() > 0 ) {
+            int n = 0;
             Runnable r;
-            while ( (r = queue.poll()) != null ) {
-                r.run();
+            try {
+                while ( (r = queue.poll(CONFIG.queuePollTimeout, TimeUnit.MILLISECONDS)) != null ) {
+                    n += 1;
+                    r.run();
+                }
+            } catch ( InterruptedException e ) {
+                LOGGER.error("[?] " + e);
             }
+            if ( CONFIG.debug && n > 0 ) {
+                LOGGER.info("[d] [" + tick + "] ran " + n + " runnables");
+            }
+        //}
+    }
+
+    private void logInputEvents() {
+        for ( InputUtil.Key key : monitoredKeys ) {
+            StatusHandler.logInputEvent( key.toString(), InputUtil.isKeyPressed(mc.getWindow().getHandle(), key.getCode()) ? 1 : 0 );
         }
+        StatusHandler.logInputEvent( "key.mouse.left", mc.mouse.wasLeftButtonClicked() ? 1 : 0 );
+        StatusHandler.logInputEvent( "key.mouse.right", mc.mouse.wasRightButtonClicked() ? 1 : 0 );
+        StatusHandler.logInputEvent( "mouse.x", (int)mc.mouse.getX());
+        StatusHandler.logInputEvent( "mouse.y", (int)mc.mouse.getY());
     }
 
     private void clientTickEvent(MinecraftClient mc) {
+        tickStart.reset();
+        tickStart.start();
         tick++;
         renderThreadId = Thread.currentThread().getId();
         if (mc.player == null || mc.world == null) {
@@ -132,14 +158,7 @@ public class ExampleMod implements ModInitializer {
         this.mc = mc;
 
         BlockBreakHelper.tick(mc);
-        processGuiTasks();
-
-        for ( InputUtil.Key key : monitoredKeys ) {
-            StatusHandler.logInputEvent( key.toString(), InputUtil.isKeyPressed(mc.getWindow().getHandle(), key.getCode()) ? 1 : 0 );
-        }
-        StatusHandler.logInputEvent( "key.mouse.left", mc.mouse.wasLeftButtonClicked() ? 1 : 0 );
-        StatusHandler.logInputEvent( "key.mouse.right", mc.mouse.wasRightButtonClicked() ? 1 : 0 );
-        StatusHandler.logInputEvent( "mouse.x", (int)mc.mouse.getX());
-        StatusHandler.logInputEvent( "mouse.y", (int)mc.mouse.getY());
+        logInputEvents();
+        processRunnables();
     }
 }

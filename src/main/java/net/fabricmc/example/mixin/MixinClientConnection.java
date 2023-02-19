@@ -50,7 +50,7 @@ public class MixinClientConnection {
             MinecraftClient mc = MinecraftClient.getInstance();
             int slot_id = mc.player.getInventory().selectedSlot;
             ItemStack stack = mc.player.getInventory().getStack(slot_id);
-            if ( stack != null && stack.getItem() == net.minecraft.item.Items.STICK ){
+            if ( stack != null && stack.getItem() == net.minecraft.item.Items.STICK && stack.getCount() > 1 ){
                 ci.cancel();
             } else {
                 PlayerInteractBlockC2SPacket pkt = (PlayerInteractBlockC2SPacket) packet;

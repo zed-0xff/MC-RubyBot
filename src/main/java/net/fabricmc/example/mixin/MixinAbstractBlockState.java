@@ -42,13 +42,14 @@ public class MixinAbstractBlockState {
         }
     }
 
-    // just hides the block, but it's still can be hit and prevents further raytrace
+    // visually hides block, but not prevents raytraces/hits
     @Inject( method = "isAir()Z", at = @At("HEAD"), cancellable = true)
     private void isAir(CallbackInfoReturnable<Boolean> cir) {
-        if ( ExampleMod.CONFIG != null && ExampleMod.CONFIG.experimental ) {
-            if (getBlock() == Blocks.COBWEB) {
-                cir.setReturnValue(ExampleMod.CONFIG.cobweb.isAir);
-            }
+        if ( ExampleMod.CONFIG == null ) return;
+        if ( ExampleMod.CONFIG.hacks.tall_grass && getBlock() == Blocks.TALL_GRASS ) {
+            cir.setReturnValue(true);
+        } else if ( ExampleMod.CONFIG.hacks.grass && getBlock() == Blocks.GRASS ) {
+            cir.setReturnValue(true);
         }
     }
 
@@ -117,13 +118,13 @@ public class MixinAbstractBlockState {
         if ( ExampleMod.CONFIG != null ) {
             Block block = getBlock();
             if ( ExampleMod.CONFIG.hacks.cobweb && block == Blocks.COBWEB) {
-                if (ExampleMod.CONFIG.cobweb.emptyOutlineShape ) {
-                    cir.setReturnValue(VoxelShapes.empty());
-                }
+                cir.setReturnValue(VoxelShapes.empty());
+            } else if ( ExampleMod.CONFIG.hacks.tall_grass && block == Blocks.TALL_GRASS) {
+                cir.setReturnValue(VoxelShapes.empty());
+            } else if ( ExampleMod.CONFIG.hacks.grass && block == Blocks.GRASS) {
+                cir.setReturnValue(VoxelShapes.empty());
             } else if ( ExampleMod.CONFIG.hacks.mushroom && (block == Blocks.RED_MUSHROOM || block == Blocks.BROWN_MUSHROOM)) {
-                if (ExampleMod.CONFIG.cobweb.emptyOutlineShape ) {
-                    cir.setReturnValue(VoxelShapes.fullCube());
-                }
+                cir.setReturnValue(VoxelShapes.fullCube());
             } else if ( ExampleMod.CONFIG.hacks.cocoa && block == Blocks.COCOA ) {
                 Integer age = ((AbstractBlockState)(Object)this).get(Properties.AGE_2);
                 if ( age == null ) return;
@@ -158,26 +159,28 @@ public class MixinAbstractBlockState {
                 cir.setReturnValue(VoxelShapes.fullCube());
             } else if ( ExampleMod.CONFIG.hacks.sugar_cane && block == Blocks.SUGAR_CANE ) {
                 cir.setReturnValue(VoxelShapes.fullCube());
+            } else if ( ExampleMod.CONFIG.hacks.carpet && (block == Blocks.GRAY_CARPET || block == Blocks.LIGHT_GRAY_CARPET)) {
+                cir.setReturnValue(VoxelShapes.empty());
             }
         }
     }
 
-    @Inject( method = "getOpacity(Lnet/minecraft/world/BlockView;Lnet/minecraft/util/math/BlockPos;)I", at = @At("HEAD"), cancellable = true)
-    void getOpacity(BlockView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        if ( ExampleMod.CONFIG != null && ExampleMod.CONFIG.experimental ) {
-            if (getBlock() == Blocks.COBWEB) {
-                cir.setReturnValue(ExampleMod.CONFIG.cobweb.opacity);
-            }
-        }
-    }
-
-    @Inject( method = "isTranslucent(Lnet/minecraft/world/BlockView;Lnet/minecraft/util/math/BlockPos;)Z", at = @At("HEAD"), cancellable = true)
-    void isTranslucent(BlockView world, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if ( ExampleMod.CONFIG != null && ExampleMod.CONFIG.experimental ) {
-            if (getBlock() == Blocks.COBWEB) {
-                cir.setReturnValue(ExampleMod.CONFIG.cobweb.isTranslucent);
-            }
-        }
-    }
+//    @Inject( method = "getOpacity(Lnet/minecraft/world/BlockView;Lnet/minecraft/util/math/BlockPos;)I", at = @At("HEAD"), cancellable = true)
+//    void getOpacity(BlockView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
+//        if ( ExampleMod.CONFIG != null && ExampleMod.CONFIG.experimental ) {
+//            if (getBlock() == Blocks.COBWEB) {
+//                cir.setReturnValue(ExampleMod.CONFIG.cobweb.opacity);
+//            }
+//        }
+//    }
+//
+//    @Inject( method = "isTranslucent(Lnet/minecraft/world/BlockView;Lnet/minecraft/util/math/BlockPos;)Z", at = @At("HEAD"), cancellable = true)
+//    void isTranslucent(BlockView world, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+//        if ( ExampleMod.CONFIG != null && ExampleMod.CONFIG.experimental ) {
+//            if (getBlock() == Blocks.COBWEB) {
+//                cir.setReturnValue(ExampleMod.CONFIG.cobweb.isTranslucent);
+//            }
+//        }
+//    }
 
 }

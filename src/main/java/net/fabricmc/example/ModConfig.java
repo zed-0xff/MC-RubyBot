@@ -23,6 +23,11 @@ public class ModConfig implements ConfigData {
     public boolean filterSounds     = true;
     public int soundLogSize         = 100;
 
+    public long queuePollTimeout    = 1;
+
+    public double yawStep = 0.1;
+    public double pitchStep = 0.1;
+
 //    public static class SoundManagerConfig {
 //        public boolean enable = false;
 //        public double maxSqDistance = 4.0;
@@ -40,7 +45,10 @@ public class ModConfig implements ConfigData {
         public boolean nether_wart = true;
         public boolean potatoes = true;
         public boolean sugar_cane = true;
+        public boolean grass = true;
+        public boolean tall_grass = true;
         public boolean wheat = true;
+        public boolean carpet = false;
     }
 
     @ConfigEntry.Category("hacks")

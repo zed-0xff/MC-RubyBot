@@ -660,7 +660,7 @@ def warp_random_hub
   MC.chat! "#goto -10 70 -69"
   sleep 1
   MC.chat! "#stop"
-  MC.interact_entity! network_id: 296
+  MC.interact_entity! network_id: 260
   wait_for { MC.screen }
   MC.screen.click_on /Random Hub/
   prev_server = MC.current_server

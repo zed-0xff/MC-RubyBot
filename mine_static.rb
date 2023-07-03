@@ -183,7 +183,9 @@ def mine_static!
         break
       end
       prev_prio = prio
-      if ARGV.any?{ |x| x['_log'] }
+      if ARGV.any?{ |x| x == 'sand' }
+        select_tool /SPADE|SHOVEL/
+      elsif ARGV.any?{ |x| x['_log'] }
         select_tool /_AXE/
       else
         select_tool /PICKAXE|DRILL/

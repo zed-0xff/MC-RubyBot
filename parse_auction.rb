@@ -13,7 +13,9 @@ STACKED_ITEMS = [
     "Chum",
 ]
 
-Dir["data/auctions.*.yml"].sort[-3..-1].each do |fname|
+a = Dir["data/auctions.*.yml"].sort
+a = a[-3..-1] if a.size > 3
+a.each do |fname|
   puts fname
   auctions = YAML::load_file(fname)
   auctions.each do |auction|

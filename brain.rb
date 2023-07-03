@@ -47,8 +47,8 @@ class Brain
     "minecraft:zombified_piglin",
 
     "minecraft:mooshroom",
-#    "minecraft:rabbit",
-    "minecraft:chicken",
+    "minecraft:rabbit",
+#    "minecraft:chicken",
     "minecraft:cow",
     "minecraft:pig",
     "minecraft:sheep",
@@ -330,6 +330,10 @@ class Brain
       lines << pet_sitter unless pet_sitter.end_with?('N/A')
     end
 
+    if (next_visitor = plist[45]) && next_visitor['Next Visitor:'] && !next_visitor[/Full|Not Un/]
+      lines << next_visitor.strip
+    end
+
 #    if (srvc=@status.dig('sidebar', 1)) && srvc.start_with?('Server closing')
 #    end
 
@@ -554,7 +558,7 @@ class Brain
     when 'minecraft:spider', 'minecraft:cave_spider'
       return /LIVID_DAGGER|_FANG/
     when 'minecraft:enderman'
-      return /LIVID_DAGGER|_KATANA/
+      return /LIVID_DAGGER|_KATANA|VOID_SWORD/
     end
 
     case mob['name']
@@ -564,7 +568,7 @@ class Brain
       /LIVID_DAGGER|CUTLASS|SWORD|CLEAVER|RABBIT_AXE|RAIDER_AXE|_FANG/
     else
       # /LIVID_DAGGER|CUTLASS|SWORD|CLEAVER|RABBIT_AXE|RAIDER_AXE/
-      /LIVID_DAGGER|RAIDER_AXE/
+      /LIVID_DAGGER|RAIDER_AXE|VOID_SWORD/
     end
   end
 
@@ -635,7 +639,7 @@ class Brain
         case @status.dig('sidebar', 0)
         when /^SKYBLOCK/
           # oky
-        when 'HYPIXEL', 'PROTOTYPE'
+        when 'HYPIXEL', 'PROTOTYPE', 'HOUSING'
           if @ticks[:skyblock] == 0 || (MC.tick - @ticks[:skyblock]) > 30*TICKS_PER_SEC
             @ticks[:skyblock] = MC.tick
             chat "/skyblock"
@@ -723,7 +727,7 @@ class Brain
           if (new_tool = mob2tool(mob))
             if select_tool(new_tool)
               @ticks[:change_tool] = current_tick
-            elsif select_tool(/SWORD/)
+            elsif select_tool(/KNIFE|SWORD/)
               @ticks[:change_tool] = current_tick
             end
           end
@@ -753,7 +757,8 @@ class Brain
       # suppress rule processing if shift is held
       if lshift == 0 && player.current_tool&.skyblock_id != "DWARVEN_METAL_DETECTOR"
         t0 = Time.now
-        block = @status.dig('raytrace_block', 'block')
+        #block = @status.dig('raytrace_block', 'block')
+        block = @status.dig('player', 'looking_at', 'block')
 #        if block && block['id'] == "minecraft:air" && raytrace && raytrace['distance'] < BLOCK_REACHABLE_DISTANCE
 #          block = raytrace['block']
 #        end
@@ -792,8 +797,9 @@ class Brain
           player['speed'] == 0
 
         if !@next_crouch || (Time.now > @next_crouch)
+          puts "[d] #{Time.now} laying egg.."
           press_key 'key.keyboard.left.control'
-          sleep(0.1)
+          sleep(0.1 + rand()/10)
           release_key 'key.keyboard.left.control'
           @next_crouch = Time.now + 20 + rand(10)
         end

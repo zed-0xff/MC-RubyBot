@@ -43,7 +43,7 @@ rules:
     maps:
       - Hub
       - The Farming Islands
-      - Private Island
+      - Garden
 
   potatoes:
     blocks:
@@ -51,10 +51,11 @@ rules:
     tools:
       - /_HOE_POTATO_/
       - /_HOE/
-    action: break_max_3d
+    action: break_max
     maps:
       - Hub
       - The Farming Islands
+      - Garden
 
   wheat:
     blocks:
@@ -63,11 +64,11 @@ rules:
     tools:
       - /_HOE_WHEAT_/
       - /_HOE/
-    action: break_max_3d
+    action: break_max
     maps:
       - Hub
       - The Farming Islands
-      - Private Island
+      - Garden
 
   sugar_cane:
     blocks:
@@ -76,17 +77,18 @@ rules:
       - /_HOE_CANE_/
       - /_HOE/
     action: break_max
-    min_y: 3
+#    min_y: 72
     maps:
       - Private Island
       - Hub
       - The Farming Islands
+      - Garden
 
   crops:
     blocks:
       - nether_wart
     tool: /_HOE/
-    action: break_max_3d
+    action: break_max
     inertia: 30
       #action: break_block
       #oneshot: true
@@ -101,7 +103,7 @@ rules:
     tools:
       - MOBYS_SHEARS
       - /_HOE/
-    action: break_max_3d
+    action: break_max
     zones:
       - Mushroom Gorge
       - Overgrown Mushroom Cave
@@ -124,10 +126,10 @@ rules:
   melons:
     blocks:
       - melon
-    zones:
-      - The Barn
+    maps:
+      - Garden
     action: hold_left
-    tool: /_AXE/
+    tool: /_GARDENING_AXE/
 
   pumpkins:
     blocks:
@@ -135,8 +137,19 @@ rules:
     zones:
       - The Barn
       - Your Island
-    action: break_max_3d
-    tool: PUMPKIN_DICER
+    action: break_max
+    tools:
+      - PUMPKIN_DICER
+
+  pumpkins2:
+    blocks:
+      - carved_pumpkin
+    maps:
+      - The Farming Islands
+      - Garden
+    action: hold_left
+    tools:
+      - /GARDENING_AXE/
 
   gather_cocoa:
     blocks:
@@ -145,7 +158,7 @@ rules:
     tools:
       - COCO_CHOPPER
       - PROMISING_AXE
-    action: break_max_3d
+    action: break_max
 
   plant_cocoa:
     enabled: false
@@ -172,6 +185,14 @@ rules:
       - Your Island
     action: break_block
 
+  cactus2:
+    blocks:
+      - cactus
+    tool: /GARDENING_AXE/
+    not_zones:
+      - Your Island
+    action: hold_left
+
   woods:
     blocks:
       - acacia_log
@@ -187,17 +208,14 @@ rules:
       - spruce_log
       - spruce_wood
     tools:
-      - JUNGLE_AXE
       - /TREECAP/
+      - JUNGLE_AXE
+      - PROMISING_AXE
     action: hold_left
-    zones:
-      - Park
-      - Birch Park
-      - Spruce Woods
-      - Savanna Woodland
-      - Jungle Island
-      - Forest
-      - Dark Thicket
+    maps:
+      - The Park
+      - Garden
+      - Hub
 
   mithril_titanium:
     blocks:
@@ -237,8 +255,9 @@ rules:
     zones:
       - Jerry Pond
       - Your Island
+      - Glacial Cave
     tool: /_PICKAXE/
-    action: break_max
+    action: break_max_3d
     oneshot: true
 
   jungle_leaves:
@@ -391,3 +410,15 @@ rules:
     maps:
       - Private Island
     action: interact_block
+
+  garden:
+    blocks:
+      - grass
+      - dandelion
+      - poppy
+      - oak_leaves
+      - azure_bluet
+    tool: SAM_SCYTHE
+    maps:
+      - Garden
+    action: hold_left

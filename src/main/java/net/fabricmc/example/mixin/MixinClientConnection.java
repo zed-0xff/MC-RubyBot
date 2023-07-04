@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.Packet;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.listener.PacketListener;
 import net.minecraft.network.NetworkState;
 import net.minecraft.network.PacketCallbacks;
@@ -34,7 +34,7 @@ import net.minecraft.util.hit.BlockHitResult;
 public class MixinClientConnection {
 
 	@Inject(
-        method = "sendInternal(Lnet/minecraft/network/Packet;Lnet/minecraft/network/PacketCallbacks;Lnet/minecraft/network/NetworkState;Lnet/minecraft/network/NetworkState;)V",
+        method = "sendInternal(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/PacketCallbacks;Lnet/minecraft/network/NetworkState;Lnet/minecraft/network/NetworkState;)V",
         at = @At("HEAD"),
         cancellable = true
     )
@@ -67,7 +67,7 @@ public class MixinClientConnection {
 	}
 
     @ModifyVariable(
-        method = "sendInternal(Lnet/minecraft/network/Packet;Lnet/minecraft/network/PacketCallbacks;Lnet/minecraft/network/NetworkState;Lnet/minecraft/network/NetworkState;)V",
+        method = "sendInternal(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/PacketCallbacks;Lnet/minecraft/network/NetworkState;Lnet/minecraft/network/NetworkState;)V",
         at = @At("HEAD")
     )
     private Packet<?> modifyPacket(Packet<?> packet) {

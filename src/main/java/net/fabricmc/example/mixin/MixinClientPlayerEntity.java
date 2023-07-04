@@ -11,14 +11,14 @@ import net.minecraft.text.Text;
 
 @Mixin(ClientPlayerEntity.class)
 public class MixinClientPlayerEntity {
-    @Inject(
-            method = "sendChatMessage(Ljava/lang/String;Lnet/minecraft/text/Text;)V",
-            at = @At("HEAD"),
-            cancellable = true
-    )
-    private void sendChatMessage(String string, Text preview, CallbackInfo ci) {
-        if( string == "/stop" ) {
-            ci.cancel();
-        }
-    }
+//    @Inject(
+//            method = "sendChatMessage(Ljava/lang/String;Lnet/minecraft/text/Text;)V",
+//            at = @At("HEAD"),
+//            cancellable = true
+//    )
+//    private void sendChatMessage(String string, Text preview, CallbackInfo ci) {
+//        if( string == "/stop" ) {
+//            ci.cancel();
+//        }
+//    }
 }

@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ConcurrentModificationException;
-import javax.annotation.Nonnull;
+//import javax.annotation.Nonnull;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
@@ -51,7 +51,7 @@ public class RayTraceUtils
         return RayTraceUtils.getRayTraceFromEntity(mc.world, mc.player, flags, distance);
     }
 
-    @Nonnull
+    //@Nonnull
     public static HitResult getRayTraceFromEntity(World worldIn, Entity entityIn, int flags)
     {
         double reach = 5.0d;
@@ -71,7 +71,7 @@ public class RayTraceUtils
         }
     }
 
-    @Nonnull
+    //@Nonnull
     public static HitResult getRayTraceFromEntity(World worldIn, Entity entityIn, int flags, double range)
     {
         Vec3d eyesVec = new Vec3d(entityIn.getX(), entityIn.getY() + entityIn.getStandingEyeHeight(), entityIn.getZ());

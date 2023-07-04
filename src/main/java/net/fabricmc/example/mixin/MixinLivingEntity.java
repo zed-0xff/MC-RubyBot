@@ -72,12 +72,12 @@ public class MixinLivingEntity {
     }
 
 
-    @Inject(method = "animateDamage()V", at = @At("HEAD"))
-    private void animateDamage(CallbackInfo ci) {
-        if ( ExampleMod.LOGGER != null ) {
-            ExampleMod.LOGGER.info("[d] " + this.toString() + ": animateDamage");
-        }
-    }
+//    @Inject(method = "animateDamage()V", at = @At("HEAD"))
+//    private void animateDamage(CallbackInfo ci) {
+//        if ( ExampleMod.LOGGER != null ) {
+//            ExampleMod.LOGGER.info("[d] " + this.toString() + ": animateDamage");
+//        }
+//    }
 
     @Inject(method = "applyDamage(Lnet/minecraft/entity/damage/DamageSource;F)V", at = @At("HEAD"))
     private void applyDamage(DamageSource source, float amount, CallbackInfo ci) {

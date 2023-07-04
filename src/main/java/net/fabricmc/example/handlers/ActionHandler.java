@@ -46,8 +46,8 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryEntry;
+import net.minecraft.registry.*;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.scoreboard.Team;
 import net.minecraft.item.ItemStack;
@@ -324,6 +324,10 @@ public class ActionHandler implements HttpHandler {
         public int x,y,color,ttl;
 
         public int delayNext = 0; // delay next action (ticks)
+
+        public BlockPos targetAsBlockPos(){
+                return new BlockPos((int)target.x, (int)target.y, (int)target.z);
+        }
     }
 
     private <T extends LivingEntity> List<T> getLivingEntitiesByClassName(String type, Box box, boolean onlyAlive) throws ClassNotFoundException {
@@ -356,13 +360,13 @@ public class ActionHandler implements HttpHandler {
                     box = new Box(blockHit.getBlockPos());
                 } else {
                     // subtract a little number otherwise looking at block's top results in a Y+1 block
-                    box = new Box(new BlockPos(tpos.getX(), tpos.getY()-0.001, tpos.getZ()));
+                    box = new Box(new BlockPos((int)tpos.getX(), (int)(tpos.getY()-0.001), (int)tpos.getZ()));
                 }
             } else {
                 box = mc.player.getBoundingBox();
             }
         } else {
-            box = new Box(new BlockPos(action.target));
+            box = new Box(action.targetAsBlockPos());
         }
         if ( action.offset != null )
             box = box.offset(action.offset);
@@ -513,7 +517,7 @@ public class ActionHandler implements HttpHandler {
             double reachDistance = action.floatArg;
             int sides = action.intArg;
 
-            boolean r = lookAtBlock(new BlockPos(action.target), action.delay, reachDistance, sides, action.delayNext);
+            boolean r = lookAtBlock(action.targetAsBlockPos(), action.delay, reachDistance, sides, action.delayNext);
             jsonResult.addProperty( action.command, r );
 
         } else if (action.command.equals("travel")) {
@@ -548,7 +552,7 @@ public class ActionHandler implements HttpHandler {
                 BlockState state = mc.world.getBlockState(pos);
                 if ( skipAir && (state.getBlock() instanceof AirBlock) && state.getProperties().isEmpty() ) {
                     // skip
-                } else if (action.stringArg2 == null || Registry.BLOCK.getId(state.getBlock()).toString().equals(action.stringArg2)) {
+                } else if (action.stringArg2 == null || Registries.BLOCK.getId(state.getBlock()).toString().equals(action.stringArg2)) {
                     JsonObject obj = StatusHandler.serializeBlockState(state);
                     obj.add("pos", Serializer.toJsonTree(pos));
                     obj.addProperty(
@@ -574,16 +578,16 @@ public class ActionHandler implements HttpHandler {
 
         } else if (action.command.equals("chat")) {
             if ( action.stringArg != null ){
-                mc.player.sendChatMessage(action.stringArg, null);
+                mc.player.networkHandler.sendChatMessage(action.stringArg);
             }
 
         } else if (action.command.equals("setAutoJump")) {
             mc.options.getAutoJump().setValue(action.boolArg);
 
         } else if (action.command.equals("playSound")) {
-            SoundEvent event = Registry.SOUND_EVENT.get(new Identifier(action.stringArg));
+            SoundEvent event = Registries.SOUND_EVENT.get(new Identifier(action.stringArg));
             if ( event == null ) {
-                event = Registry.SOUND_EVENT.getRandom(Random.create())
+                event = Registries.SOUND_EVENT.getRandom(Random.create())
                     .map(RegistryEntry::value)
                     .orElse(SoundEvents.ENTITY_GENERIC_EXPLODE);
                 LOGGER.info("[?] no sound with id '" + action.stringArg + "', playing '" + event.getId() + "' instead");
@@ -929,7 +933,7 @@ public class ActionHandler implements HttpHandler {
         } else if (action.command.equals("interactBlock")) {
             Hand hand = action.intArg == 0 ? Hand.MAIN_HAND : Hand.OFF_HAND;
             if ( action.target != null && action.stringArg != null ) {
-                BlockPos pos = new BlockPos(action.target);
+                BlockPos pos = action.targetAsBlockPos();
                 Direction dir = Direction.valueOf(action.stringArg);
                 if ( pos != null && dir != null ){
                     BlockHitResult target = new BlockHitResult(Vec3d.ZERO, dir, pos, false);
@@ -958,7 +962,7 @@ public class ActionHandler implements HttpHandler {
             // boolArg   = oneshot
             boolean oneShot = action.boolArg; // don't send ABORT_DESTROY_BLOCK, use with caution
             if ( action.target != null && action.stringArg != null ) {
-                BlockPos pos = new BlockPos(action.target);
+                BlockPos pos = action.targetAsBlockPos();
                 Direction dir = Direction.valueOf(action.stringArg);
                 if ( pos != null && dir != null ){
                     actionDelay( action.delayNext );
@@ -996,7 +1000,7 @@ public class ActionHandler implements HttpHandler {
 
         } else if (action.command.equals("hideBlock")) {
             if ( action.target == null ) return 400;
-            BlockPos pos = new BlockPos(action.target);
+            BlockPos pos = action.targetAsBlockPos();
             if ( mc.world.getBlockState(pos) != null ) {
                 mc.world.setBlockState(pos, Blocks.AIR.getDefaultState(), 0, 0);
             }

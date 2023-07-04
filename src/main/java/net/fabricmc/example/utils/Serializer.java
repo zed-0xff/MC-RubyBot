@@ -82,11 +82,11 @@ public class Serializer {
                 @Override
                 public JsonElement serialize(DamageSource src, Type typeOfSrc, JsonSerializationContext context) {
                     JsonObject obj = new JsonObject();
-                    obj.addProperty("name", src.name);
+                    obj.addProperty("name", src.getName());
                     obj.add("position", toJsonTree(src.getPosition()));
                     obj.add("source", toJsonTree(src.getSource()));
                     obj.add("attacker", toJsonTree(src.getAttacker()));
-                    obj.addProperty("outOfWorld", src.isOutOfWorld());
+                    //obj.addProperty("outOfWorld", src.isOutOfWorld());
                     return obj;
                 }
             })

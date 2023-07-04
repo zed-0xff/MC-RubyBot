@@ -35,7 +35,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.registry.Registry;
+import net.minecraft.registry.*;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.Formatting;
 import net.minecraft.scoreboard.*;
@@ -147,7 +147,7 @@ public class StatusHandler implements HttpHandler {
 //    }
 
     public static JsonObject serializeBlockState(BlockState state) {
-        Identifier id = Registry.BLOCK.getId(state.getBlock());
+        Identifier id = Registries.BLOCK.getId(state.getBlock());
         JsonObject obj = new JsonObject();
         obj.addProperty("id", id.toString());
         for (Property prop : state.getProperties()) {
@@ -308,9 +308,9 @@ public class StatusHandler implements HttpHandler {
         if ( entity.isRemoved() )
             obj.addProperty("removed", true);
 
-        Set<String> scoreboardTags = entity.getScoreboardTags();
-        if ( scoreboardTags != null && scoreboardTags.size() > 0 ) {
-            obj.add("scoreboardTags", Serializer.toJsonTree(scoreboardTags));
+        Set<String> commandTags = entity.getCommandTags();
+        if ( commandTags != null && commandTags.size() > 0 ) {
+            obj.add("commandTags", Serializer.toJsonTree(commandTags));
         }
 
         AbstractTeam team = entity.getScoreboardTeam();
@@ -429,8 +429,8 @@ public class StatusHandler implements HttpHandler {
             obj.addProperty("class", e.getClass().getName());
             if ( e instanceof ClickableWidget ){
                 ClickableWidget cw = (ClickableWidget)e;
-                obj.addProperty("x", cw.x);
-                obj.addProperty("y", cw.y);
+                obj.addProperty("x", cw.getX());
+                obj.addProperty("y", cw.getY());
                 obj.addProperty("width", cw.getWidth());
                 obj.addProperty("height", cw.getHeight());
                 obj.addProperty("message", text2string(cw.getMessage()));

@@ -99,7 +99,7 @@ public class HudOverlay {
                 }
 
                 for ( String line : t.lines ){
-                    dh.drawStringWithShadow( matrixStack, mc.textRenderer, line, x, y, t.color );
+                    dh.drawTextWithShadow( matrixStack, mc.textRenderer, line, x, y, t.color );
                     y += mc.textRenderer.fontHeight+1;
                 }
 

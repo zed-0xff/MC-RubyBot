@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameRenderer.class)
 public class MixinGameRenderer {
-    @Inject(method="bobViewWhenHurt", at = @At("HEAD"), cancellable = true)
+    @Inject(method="bobView", at = @At("HEAD"), cancellable = true)
     private void cancelHurtCam(MatrixStack ms, float f, CallbackInfo ci) {
         ci.cancel();
     }

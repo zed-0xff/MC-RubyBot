@@ -48,7 +48,7 @@ class Brain
 
     "minecraft:mooshroom",
     "minecraft:rabbit",
-#    "minecraft:chicken",
+    "minecraft:chicken",
     "minecraft:cow",
     "minecraft:pig",
     "minecraft:sheep",

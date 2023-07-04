@@ -39,8 +39,8 @@ end
 SAVE_LAST_ORES = 2
 @last_ores = []
 
-BLOCK_MINE_TIMEOUT = 1
-TITANIUM_MINE_TIMEOUT = 5
+BLOCK_MINE_TIMEOUT = 2
+TITANIUM_MINE_TIMEOUT = 6
 
 ORE_PRIORITIES = Hash.new(100) # default
 ORE_PRIORITIES["minecraft:polished_diorite"]  = 10 # titanium

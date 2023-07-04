@@ -7,7 +7,7 @@ MAX_DISTANCE = 120
 
 @blacklist = Set.new
 
-def farm_mobs timeout: 1, range: 10..MAX_DISTANCE, radiusY: 5, filter: nil, enchant: true, classes: nil
+def farm_mobs timeout: 1, range: 10..MAX_DISTANCE, radiusY: 1, filter: nil, enchant: true, classes: nil
   #puts "[d] farm_mobs timeout:#{timeout}, range:#{range}"
   attack_nearest(timeout: timeout, radiusY: 1, filter: filter)
   range.each do |d|
@@ -18,7 +18,7 @@ def farm_mobs timeout: 1, range: 10..MAX_DISTANCE, radiusY: 5, filter: nil, ench
         attack_nearest timeout: 5, filter: filter
       end
     end
-    if MC.player.inventory.free_slots_count < 9 && enchant
+    if MC.player.inventory.free_slots_count < 4 && enchant
       enchant_inventory!
 #      stash! if MC.player.inventory.count(/^ENCHANTED_/) > 64
     end

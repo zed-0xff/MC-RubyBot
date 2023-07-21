@@ -156,7 +156,13 @@ public class MixinAbstractBlockState {
                     cir.setReturnValue(VoxelShapes.fullCube());
                 }
             } else if ( ExampleMod.CONFIG.hacks.nether_wart && block == Blocks.NETHER_WART ) {
-                cir.setReturnValue(VoxelShapes.fullCube());
+                Integer age = ((AbstractBlockState)(Object)this).get(Properties.AGE_3);
+                if ( age == null ) return;
+                if ( age < Properties.AGE_3_MAX ) {
+                    cir.setReturnValue(VoxelShapes.empty());
+                } else {
+                    cir.setReturnValue(VoxelShapes.fullCube());
+                }
             } else if ( ExampleMod.CONFIG.hacks.sugar_cane && block == Blocks.SUGAR_CANE ) {
                 cir.setReturnValue(VoxelShapes.fullCube());
             } else if ( ExampleMod.CONFIG.hacks.carpet && (block == Blocks.GRAY_CARPET || block == Blocks.LIGHT_GRAY_CARPET)) {

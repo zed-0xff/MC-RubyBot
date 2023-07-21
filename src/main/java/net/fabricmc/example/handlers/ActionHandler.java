@@ -352,7 +352,9 @@ public class ActionHandler implements HttpHandler {
 
     private static Box boxFromAction( Action action ) {
         Box box;
-        if ( action.target == null ) {
+        if ( action.box != null ) {
+                box = action.box;
+        } else if ( action.target == null ) {
             if ( action.stringArg != null && action.stringArg.equals("looking_at") ) {
                 Vec3d tpos = mc.crosshairTarget.getPos();
                 if (mc.crosshairTarget instanceof BlockHitResult) {

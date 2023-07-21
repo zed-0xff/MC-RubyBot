@@ -644,7 +644,6 @@ public class StatusHandler implements HttpHandler {
         obj.add("world", serializeWorld(mc.world));
         obj.add("hud", serializeHUD());
         obj.addProperty("status", "full");
-        obj.addProperty("status", "full");
         obj.add("bossBars", Serializer.toJsonTree(
                     ((BossBarHudAccessor)mc.inGameHud.getBossBarHud()).getBossBars()
                     ));

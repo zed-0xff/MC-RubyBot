@@ -5,8 +5,8 @@ require_relative 'enchant'
 MC.cache_ttl = 0.1
 
 POINTS = [
-  Pos[129.5, 186, 96],
-  Pos[129.5, 186, 18],
+  Pos[129.5, 186, 95],
+  Pos[129.5, 186, 21],
 ]
 
 STRIPES = [124, 129, 134]

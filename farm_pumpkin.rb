@@ -1,12 +1,13 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require_relative 'enchant'
 
-PLOT_NAME = "Wheat"
-START_X = -136.5
+PLOT_NAME = "Pumpkin"
+START_X = -46.5
 START_Y = 70
-START_Z = 46.5
-END_Z   = -46.5
-END_X   = -55.5
+START_Z = -49.5
+END_Z   = -142.5
 
 if $0 == __FILE__
   loop do
@@ -15,12 +16,7 @@ if $0 == __FILE__
       wait_for { MC.current_map == "Garden" }
     end
 
-    farm_prepared2!(
-      start_x: END_X, start_y: START_Y, start_z: START_Z,
-      end_z: END_Z, name: PLOT_NAME,
-      reverse: true, yaw: 90
-    )
-    farm_prepared2!(
+    farm_prepared!(
       start_x: START_X, start_y: START_Y, start_z: START_Z,
       end_z: END_Z, name: PLOT_NAME
     )

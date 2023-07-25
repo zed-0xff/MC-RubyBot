@@ -27,7 +27,7 @@ end
 $stdout.sync = true
 
 ACTION_URI = URI('http://127.0.0.1:9999/action')
-LOG_FNAME = "~/minecraft/logs/latest.log"
+LOG_FNAME = "~/games/minecraft-1.19.4/logs/latest.log"
 BLOCK_REACHABLE_DISTANCE  = 4.49
 ENTITY_REACHABLE_DISTANCE = 2.99
 LEFT = 0
@@ -95,7 +95,7 @@ def look_at target, delay: nil
   l
 end
 
-AI_MAX_WAIT = 15.0 # seconds
+AI_MAX_WAIT = 25.0 # seconds
 
 def say what
   puts "[.] use MC.say!".gray
@@ -113,12 +113,12 @@ def get_messages filter
   JSON.parse(res.body)['messages']
 end
 
-def ai_move_to target
+def ai_move_to target, **args
   raise "no AI!" unless MC.has_mod?('baritone')
-  _ai_move_to target
+  _ai_move_to target, **args
 end
 
-def _ai_move_to target
+def _ai_move_to target, precision: 1, timeout_ticks: 10, max_wait: AI_MAX_WAIT
   result = true
   MC.invalidate_cache!
   target = Pos[target]
@@ -130,11 +130,11 @@ def _ai_move_to target
   dist = prev_dist = nil
   nticks = 0
   dlook = Pos[0, 1.2+rand()/6, 0]
-  while (dt=Time.now - t0) < AI_MAX_WAIT
+  while (dt=Time.now - t0) < max_wait
     dist = distance(target, pos)
     MC.look_at!(target + dlook) if dist > 2
     printf "\r[.] waiting for AI .. t=%5.3fs, dist=%.3f  ".purple, dt, dist
-    if (dist < 1 || prev_dist == dist) && nticks > 10
+    if (dist < precision || prev_dist == dist) && nticks > timeout_ticks
       $stdout << "\n[?] ai stop: dist=#{dist} prev_dist=#{prev_dist} nticks=#{nticks}".yellowish
       result = false
       break
@@ -149,7 +149,7 @@ def _ai_move_to target
     nticks += 1
   end
   puts
-  result = false if dt >= AI_MAX_WAIT
+  result = false if dt >= max_wait
   result
 ensure
   script = [ { command: "chat", stringArg: "#stop" } ]
@@ -260,8 +260,16 @@ def select_tool tool_id, delay_next: nil, return_tool: true
   if tool
     MC.select_slot! tool['Slot'], delay_next: delay_next
     return_tool ? tool : true
+  elsif (tool=MC.player.main_inventory.find{ |x| x && matcher.call(x) })
+    # tool found, but not in hotbar
+    dst_slot_id = 7 # last
+    if (free_slot = player.hotbar.find(&:empty?))
+      dst_slot_id = free_slot.slot_id
+    end
+    MC.click_inventory_slot! tool.slot_id, action_type: "SWAP", button: dst_slot_id
+    MC.select_slot! dst_slot_id
+    return_tool ? tool : true
   else
-    #puts "[?] tool #{tool_id.inspect} not found"
     nil
   end
 end
@@ -372,10 +380,10 @@ def wait_for_screen title, delay: 0.1, msg: title, max_wait: 1, raise: true
   MC.screen
 end
 
-def wait_for_message filter, max_wait: 5, only_new: false
+def wait_for_message filter, max_wait: 5, only_new: false, raise: true
   messages = nil
   prev_messages = only_new ? get_messages(filter) : []
-  wait_for(max_wait: max_wait) do
+  wait_for(max_wait: max_wait, raise: raise) do
     messages = get_messages(filter) - prev_messages
     messages.any?
   end
@@ -697,4 +705,100 @@ rescue
   puts "[?] unstash failed: #{$!}".red
 ensure
   MC.close_screen!
+end
+
+# pumpkin, melon
+def farm_prepared! start_x:, start_y:, start_z:, end_z:, name:, nrows: 15, rowsize: 6, yaw_d: 15
+  chat "#set allowBreak false"
+  ai_move_to Pos.new(start_x, start_y, start_z), precision: 0.25, max_wait: 60
+
+  nrows.times do |i|
+    if i%2 == 0
+      MC.set_pitch_yaw! pitch: rand(), yaw: -90+yaw_d+(rand()-0.5)
+
+      MC.press_key! 'key.mouse.left'
+      MC.press_key! 'a'
+      while MC.player.pos.z.to_i > end_z.to_i
+        sleep 0.1
+        MC.invalidate_cache!
+        return if MC.current_map != "Garden" || MC.current_zone != "Plot: #{name}"
+      end
+      MC.release_key! 'a'
+    else
+      MC.set_pitch_yaw! pitch: rand(), yaw: -90-yaw_d+(rand()-0.5)
+
+      MC.press_key! 'key.mouse.left'
+      MC.press_key! 'd'
+      while MC.player.pos.z.to_i < start_z.to_i
+        sleep 0.1
+        MC.invalidate_cache!
+        return if MC.current_map != "Garden" || MC.current_zone != "Plot: #{name}"
+      end
+      MC.release_key! 'd'
+    end
+
+    MC.release_key! 'key.mouse.left'
+
+    unless i == nrows - 1
+      MC.set_pitch_yaw! yaw: -90+(rand()-0.5)
+      MC.press_key! 'w'
+      x0 = MC.player.pos.x
+      wait_for(max_wait: 5, raise: false) do
+        (MC.player.pos.x - x0).abs >= (rowsize-0.5)
+      end
+      sleep(0.1) if (MC.player.pos.x - MC.player.pos.x.to_i).abs < 0.69
+      MC.release_key! 'w'
+    end
+  end
+ensure
+  MC.release_key! 'key.mouse.left'
+  MC.release_key! 'a'
+  MC.release_key! 'w'
+  MC.release_key! 'd'
+end
+
+# carrot, wheat, potato
+def farm_prepared2! start_x:, start_y:, start_z:, end_z:, name:, nrows: 10, rowsize: 9, yaw_d: 0,
+  delay: 0.0775, pitch: 2.5, yaw: -90, reverse: false
+
+  chat "#set allowBreak false"
+  ai_move_to Pos.new(start_x, start_y, start_z), precision: 0.25, max_wait: 60
+
+  nrows.times do |i|
+    if i%2 == 0
+      MC.set_pitch_yaw! pitch: pitch+rand(), yaw: yaw+yaw_d+(rand()*5)
+      MC.press_key! 'key.mouse.left'
+
+      while MC.player.pos.z.to_i > end_z.to_i
+        sleep delay
+        return if MC.current_map != "Garden" || MC.current_zone != "Plot: #{name}"
+        MC.travel!((reverse ? :right : :left), amount: 3)
+      end
+    else
+      MC.set_pitch_yaw! pitch: pitch+rand(), yaw: yaw-yaw_d-(rand()*5)
+      MC.press_key! 'key.mouse.left'
+
+      while MC.player.pos.z.to_i < start_z.to_i
+        sleep delay
+        return if MC.current_map != "Garden" || MC.current_zone != "Plot: #{name}"
+        MC.travel!((reverse ? :left : :right), amount: 3)
+      end
+    end
+
+    MC.release_key! 'key.mouse.left'
+
+    unless i == nrows - 1
+      MC.set_pitch_yaw! yaw: yaw+(rand()-0.5)
+      MC.press_key! 'w'
+      x0 = MC.player.pos.x
+      wait_for(max_wait: 5, raise: false) do
+        (MC.player.pos.x - x0).abs >= (rowsize-0.75)
+      end
+      sleep(0.1) if (MC.player.pos.x - MC.player.pos.x.to_i).abs < 0.69
+      MC.release_key! 'w'
+    end
+  end
+ensure
+  MC.release_key! 'key.mouse.left'
+  MC.release_key! 'w'
 end

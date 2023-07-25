@@ -14,6 +14,7 @@ class Player < Base
         @money = purse.split[1].tr(',','').to_f
       end
       @bingo = status['sidebar'].find { |x| x['Ⓑ Bingo'] }
+      @ironman = status['sidebar'].find { |x| x['♲ Ironman'] }
     end
     if status['overlay'].to_s =~ /§c([0-9,]+)\/([0-9,]+)❤/
       @hp  = $1.tr(',','').to_i
@@ -34,7 +35,7 @@ class Player < Base
 
   # FIXME
   def ironman?
-    false
+    @ironman
   end
 
   def bingo?

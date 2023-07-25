@@ -14,13 +14,14 @@ require_relative 'enchant'
   }
 end
 
-YAW_D = 5
+YAW_D = 10
+THR = 180
 
 def farm_cacti!
   if MC.player.pos.z < 95
     @boxes.sort_by{ |box| distance(Pos.new(box[:minX], box[:minY], box[:minZ])) }.each do |box|
       c = MC.blocks!(box: box)['blocks'].count{ |b| b['id'] == 'minecraft:cactus' }
-      next if c < 200
+      next if c < THR
 
       ai_move_to Pos.new(box[:minX], box[:minY], box[:minZ]), timeout_ticks: 4
       MC.set_pitch_yaw! pitch: rand(), yaw: -90+YAW_D+(rand()-0.5)
@@ -46,7 +47,7 @@ def farm_cacti!
   else
     @boxes.sort_by{ |box| distance(Pos.new(box[:minX], box[:minY], box[:maxZ])) }.each do |box|
       c = MC.blocks!(box: box)['blocks'].count{ |b| b['id'] == 'minecraft:cactus' }
-      next if c < 200
+      next if c < THR
 
       ai_move_to Pos.new(box[:minX], box[:minY], box[:maxZ]), timeout_ticks: 4
       MC.set_pitch_yaw! pitch: rand(), yaw: -90-YAW_D+(rand()-0.5)

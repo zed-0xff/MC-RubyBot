@@ -21,6 +21,7 @@ class Brain
       @prev_interacts = []
       @min_y = rule['min_y']
       @max_y = rule['max_y']
+      @skipz5 = rule['skipz5']
 
       if rule['tool']
         @tools = [_parse_tool(rule['tool'])]
@@ -122,7 +123,9 @@ class Brain
         when 'break_max'
           d = 0
           return Proc.new do |mc|
-            mc.break_block! target: block['pos'], side: block['side'].upcase, delay_next: d, oneshot: true
+            if !@skipz5 || block['pos']['z'] % 5 != 0
+              mc.break_block! target: block['pos'], side: block['side'].upcase, delay_next: d, oneshot: true
+            end
             blocks = Array(status['blocks_around_looking_at']).
               find_all{ |x| x['id'] == block['id'] && !@prev_breaks.include?(x['pos']) }
             if blocks.any?
@@ -130,6 +133,7 @@ class Brain
                 next if b['pos'] == block['pos']
                 next if b['pos']['y'] != block['pos']['y']
                 next if b['age'] != block['age']
+                next if @skipz5 && b['pos']['z'] % 5 == 0
                 mc.break_block! target: b['pos'], side: block['side'].upcase, delay_next: d, oneshot: true
                 d = 1 - d # break 2 blocks per tick
               end

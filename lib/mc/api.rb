@@ -253,6 +253,8 @@ module MC
         target = {x: 0, y: 0, z: 0}
         dirs.each do |dir|
           case dir
+          when Hash
+            target = dir
           when :left
             target[:x] = amount
           when :right
@@ -285,13 +287,16 @@ module MC
         radius: BLOCK_REACHABLE_DISTANCE,
         radiusY: BLOCK_REACHABLE_DISTANCE,
         offset: { x: 0, y: 1, z: 0 },
-        expand: { x: radius, y: radiusY, z: radius },
+        expand: nil,
         skip_air: true,
         result_key: nil,
         string_arg: nil,
         filter: nil,
-        target: nil
+        target: nil,
+        box: nil
       )
+        expand ||= { x: radius, y: radiusY, z: radius } unless box
+        
         [{
           command: "blocksRelative",
           expand: expand,
@@ -301,6 +306,7 @@ module MC
           stringArg: string_arg,
           stringArg2: filter,
           target: target,
+          box: box,
         }]
       end
 

@@ -1,12 +1,11 @@
 #!/usr/bin/env ruby
 require_relative 'enchant'
 
-PLOT_NAME = "Wheat"
-START_X = -136.5
-START_Y = 70
-START_Z = 46.5
-END_Z   = -46.5
-END_X   = -55.5
+PLOT_NAME = "Wart"
+START_X = -236.5
+START_Y = 71
+START_Z = 44.5
+END_Z   = -45.5
 
 if $0 == __FILE__
   loop do
@@ -16,13 +15,9 @@ if $0 == __FILE__
     end
 
     farm_prepared2!(
-      start_x: END_X, start_y: START_Y, start_z: START_Z,
-      end_z: END_Z, name: PLOT_NAME,
-      reverse: true, yaw: 90
-    )
-    farm_prepared2!(
       start_x: START_X, start_y: START_Y, start_z: START_Z,
-      end_z: END_Z, name: PLOT_NAME
+      end_z: END_Z, name: PLOT_NAME,
+      rowsize: 11, nrows: 9, pitch: 0
     )
     break if ARGV.include?('--oneshot')
   end

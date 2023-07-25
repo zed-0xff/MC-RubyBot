@@ -2,22 +2,12 @@
 require_relative 'enchant'
 
 @tstart = Time.now
-
 @noenchant = ARGV.delete('--no-enchant')
+@oneshot = ARGV.delete('--oneshot')
+@pos0 = MC.player.pos
+@zone0 = MC.current_zone
 
-def is_crop?(id)
-  ARGV.any? { |x| id == "minecraft:#{x}" }
-end
-
-def count_around radius
-  scan(radius: radius, radiusY: 4)['blocks'].count { |b| is_crop?(b['id']) }
-end
-
-def farm_crops! start_positions, range=nil
-  c0 = MC.player.inventory.count("ENCHANTED_WHEAT")*160 +
-    MC.player.inventory.count("WHEAT")
-  t0 = Time.now
-
+def farm_crops! range=nil
 #  if current_zone != "The Farming Islands"
 #    chat "/warp home" unless current_zone == 'Private Island'
 #    wait_for(max_wait: 10) { current_zone == 'Private Island' }
@@ -26,31 +16,33 @@ def farm_crops! start_positions, range=nil
 #  end
 
   loop do
-    chat "#farm #{range}"
+    chat @cmd
     sleep 0.5
     #press_key 'key.mouse.left', 0
 
     a = []
     poss = []
-    200.times do
+    60.times do
       if MC.player.inventory.full?
         chat "#stop"
         exit if @noenchant
         enchant_inventory! 
-        chat "#farm #{range}"
+        chat @cmd
+      end
+      if MC.current_map != "Garden"
+        chat "/warp garden"
+        sleep 5
+      end
+      if MC.current_zone != @zone0
+        chat "#stop"
+        ai_move_to @pos0
+        chat @cmd
       end
       sleep 1
     end
+    break if @oneshot
   end
   chat "#stop"
-
-  c1 = MC.player.inventory.count("ENCHANTED_WHEAT")*160 +
-    MC.player.inventory.count("WHEAT")
-  t1 = Time.now
-
-  dt = Time.now - @tstart
-  formatted_dt = "%02d:%02d" % [dt/3600, (dt/60)%60]
-  printf "[.] %s %2ds, %3d crops per run, %2d crops/s\n", formatted_dt, (t1-t0), (c1-c0), (c1-c0)/(t1-t0)
 
 #  chat "/warp home"
 #  sleep(1+rand()*2)
@@ -61,10 +53,20 @@ ensure
   chat "#stop"
 end
 
+range = ARGV.first
+@cmd =
+  if range.nil? || range =~ /^\d+$/
+    "#farm #{range}"
+  else
+    "#mine #{ARGV.join(' ')}"
+  end
+
 if $0 == __FILE__
   chat "#stop"
   chat "#set allowBreak false"
+  select_tool /_HOE/
   loop do
-    farm_crops! nil
+    farm_crops! range
+    break if @oneshot
   end
 end

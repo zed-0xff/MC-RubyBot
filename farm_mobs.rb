@@ -4,10 +4,11 @@ require_relative 'enchant'
 require 'set'
 
 MAX_DISTANCE = 120
+RADIUS_Y = 5
 
 @blacklist = Set.new
 
-def farm_mobs timeout: 1, range: 10..MAX_DISTANCE, radiusY: 1, filter: nil, enchant: true, classes: nil
+def farm_mobs timeout: 1, range: 10..MAX_DISTANCE, radiusY: RADIUS_Y, filter: nil, enchant: true, classes: nil
   #puts "[d] farm_mobs timeout:#{timeout}, range:#{range}"
   attack_nearest(timeout: timeout, radiusY: 1, filter: filter)
   range.each do |d|

@@ -169,6 +169,7 @@ class Brain
   #   4. hit/miss ratio: [=] 196 swings, 162 hits, ratio = 0.827
   #
   def smart_attack! mob
+    return if MC.current_map == "Garden"
     if @next_attack_delay
       return if (MC.tick - @ticks[:attack]) < @next_attack_delay
     end
@@ -347,16 +348,22 @@ class Brain
       end
     end
     
-    if (event = plist[73,2])
-      event = event.join.
+    if plist[73].to_s['Starts In']
+      event = plist[72,2].join.
         sub(/^Event: /,'').
         sub(" Starts In",'')
-      lines << event
+      lines << event unless event['Election Booth Opens']
+    elsif plist[74].to_s['Starts In']
+      event = plist[73,2].join.
+        sub(/^Event: /,'').
+        sub(" Starts In",'')
+      lines << event unless event['Election Booth Opens']
     end
 
     lines << get_battery
 
     lines.compact!
+    lines.delete("")
     lines.map! { |l| a = l.sub(/ [IV]+ /, ": ").split(": ", 2); a[1] = parse_eta(a[1], a[0]); a }
 
     # Jerry's workshop
@@ -390,7 +397,9 @@ class Brain
     else
       next_fday = 3*((now.day_no+3)/3)-1
       if (f=calendar[next_fday])
-        msg = f["crops"].map{|x| x[0,5]}.join(", ").sub("Carro", "§6Carro§r")
+        msg = f["crops"].map{|x| x[0,5]}.join(", ")
+          .sub("Carro", "§6Carro§r")
+          .sub("Nethe", "Wart")
         lines << [msg, Skytime.new(now.year, f["month"], f["day"])-now]
       end
     end
@@ -567,7 +576,6 @@ class Brain
     when /Silverfish/
       /LIVID_DAGGER|CUTLASS|SWORD|CLEAVER|RABBIT_AXE|RAIDER_AXE|_FANG/
     else
-      # /LIVID_DAGGER|CUTLASS|SWORD|CLEAVER|RABBIT_AXE|RAIDER_AXE/
       /LIVID_DAGGER|RAIDER_AXE|VOID_SWORD/
     end
   end
@@ -614,7 +622,7 @@ class Brain
         status!
         raytrace!(range: ENTITY_REACHABLE_DISTANCE+3, liquids: false)
         raytrace!(range: BLOCK_REACHABLE_DISTANCE, liquids: false, entities: false, result_key: "raytrace_block")
-        blocks!(offset: nil, expand: {x: 1, y: 1, z:1}, string_arg: "looking_at", result_key: "blocks_around_looking_at")
+        blocks!(offset: nil, expand: {x: 1, y: 1, z: 1}, string_arg: "looking_at", result_key: "blocks_around_looking_at")
         entities!(radius: ENTITY_REACHABLE_DISTANCE, type: "ArmorStandEntity")
       end
       @current_tick = @status['tick']
@@ -727,7 +735,7 @@ class Brain
           if (new_tool = mob2tool(mob))
             if select_tool(new_tool)
               @ticks[:change_tool] = current_tick
-            elsif select_tool(/KNIFE|SWORD/)
+            elsif select_tool(/KNIFE|SWORD|CLEAVER|BLADE/)
               @ticks[:change_tool] = current_tick
             end
           end
